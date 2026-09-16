@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sensor check – Sparsh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ground:#0B2E35;--ground-2:#12414A;--ground-3:#1A535E;--bone:#F2F5F4;--slate:#9FB8BD;--amber:#E8A33A;--ember:#D9722F;--ok:#6FD3B5;
+  --serif:"Newsreader",Cambria,Georgia,serif;--sans:"IBM Plex Sans",-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--bone);font:16px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:720px;margin:0 auto;padding:22px 20px 48px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px;font-family:var(--serif);font-size:21px;color:var(--bone);text-decoration:none}
+.brand .mark{width:18px;height:31px;display:block;overflow:visible}
+.mark .ac{fill:none;stroke:var(--amber);stroke-width:2.1;stroke-linecap:round}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--ground-2);font-size:14px;color:var(--slate)}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--slate)}
+.pill.live{color:var(--bone)}
+.pill.live i{background:var(--ok);box-shadow:0 0 0 4px rgba(111,211,181,.18)}
+.pill.lost{color:var(--bone)}
+.pill.lost i{background:var(--ember)}
+h1{font-family:var(--serif);font-weight:500;letter-spacing:-.01em;font-size:34px;line-height:1.15;margin:34px 0 8px}
+.lede{color:var(--slate);margin:0 0 26px;max-width:60ch}
+.zone{padding:16px 0 18px;border-top:1px solid var(--ground-3)}
+.zone:last-child{border-bottom:1px solid var(--ground-3)}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.name{font-family:var(--serif);font-size:21px}
+.name small{font-family:var(--sans);font-size:14px;color:var(--slate);margin-left:8px}
+.held{font-variant-numeric:tabular-nums;color:var(--slate);white-space:nowrap}
+.zone.loaded .held{color:var(--amber)}
+.zone.alert .held{color:var(--ember);font-weight:600}
+.bar{position:relative;height:12px;border-radius:6px;background:var(--ground-2);margin:10px 0 8px;overflow:hidden}
+.fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:6px;background:linear-gradient(90deg,#8C6A2F,var(--amber));transition:width .12s linear}
+.zone.alert .fill{background:linear-gradient(90deg,#8F4A22,var(--ember))}
+.tick{position:absolute;top:0;bottom:0;width:2px;background:var(--bone);opacity:.55}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:14px;color:var(--slate);font-variant-numeric:tabular-nums}
+.meta b{font-weight:500;color:var(--bone)}
+.meta .warn{color:var(--amber)}
+footer{margin-top:26px;color:var(--slate);font-size:14px;max-width:60ch}
+footer a{color:var(--bone)}
+a:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+@media (max-width:480px){h1{font-size:28px}.name small{display:block;margin:2px 0 0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="/" id="homeLink">
+      <svg class="mark" viewBox="4 1 18 31" fill="currentColor" aria-hidden="true"><path d="M6 13C6 10 9.5 8.8 13 9.2C16.6 9.6 19.4 10.8 19.4 14C19.4 17.4 17.4 19.4 17.4 23.4C17.4 28 15.4 31 12.6 31C9.8 31 8.6 28.6 8.9 25.6C9.2 22.4 11 21.2 10.6 18.6C10.2 16.4 6 16.2 6 13Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><ellipse cx="7.4" cy="4.9" rx="2.3" ry="2.9"/><circle cx="11.5" cy="3.3" r="1.45"/><circle cx="14.6" cy="4" r="1.3"/><circle cx="17.2" cy="5.5" r="1.15"/><circle cx="19.2" cy="7.6" r="1"/><path class="ac" d="M14 14.6v5M11.5 17.1h5"/></svg>
+      Sparsh
+    </a>
+    <span class="pill" id="pill" role="status" aria-live="polite"><i></i><span id="pillText">Waiting for the insole</span></span>
+  </header>
+
+  <h1>Sensor check</h1>
+  <p class="lede" id="lede">Press one pad at a time. Its bar should cross the white line and its timer should start. After 10 seconds of load the motor turns on.</p>
+
+  <section id="zones" aria-label="Pads"></section>
+
+  <footer>
+    Each pad is compared with its own resting time, measured when the insole powers on. Switch it on with nobody standing on it.
+    <br><a href="/" id="boardLink">Open the dashboard</a>
+  </footer>
+</div>
+<script>
+const ZONES = [["Hallux","big toe"],["Toes 2–5","lesser toes"],["MT 1","inner ball of foot"],["MT 4–5","outer ball of foot"],["Midfoot","outer midfoot"],["Heel","heel"]];
+const LOADED_AT = 0.45, ALERT_MS = 10000, LIVE_MS = 2000, OPEN_US = 1000000;
+const byId = id => document.getElementById(id);
+const num = v => v.toLocaleString("en-IN");
+let lastAt = -1, lastSrc = null, streamDown = false;
+
+const rows = ZONES.map(([short, plain]) => {
+  const el = document.createElement("article");
+  el.className = "zone";
+  el.innerHTML = `<div class="top"><span class="name">${short}<small>${plain}</small></span><span class="held">Not loaded</span></div>
+    <div class="bar" role="meter" aria-label="${short} pressure" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="fill"></div><div class="tick" style="left:${LOADED_AT*100}%"></div></div>
+    <div class="meta"><span class="ratio">No data yet</span><span class="rd"></span><span class="rs"></span></div>`;
+  byId("zones").appendChild(el);
+  return { el, held: el.querySelector(".held"), bar: el.querySelector(".bar"), fill: el.querySelector(".fill"),
+           ratio: el.querySelector(".ratio"), rd: el.querySelector(".rd"), rs: el.querySelector(".rs") };
+});
+
+function set(node, text, cls) {
+  if (node.textContent !== text) node.textContent = text;
+  if (cls && node.className !== cls) node.className = cls;
+}
+
+function describe(t, r) {
+  if (t === null) return ["Timers only: flash the new firmware to see readings", "ratio warn"];
+  if (r === 0) return ["No resting time yet: keep the pad unloaded for a moment", "ratio warn"];
+  if (t === -3) return [r >= OPEN_US ? "No reading, as expected for this pad at rest" : "No reading: pad isn't conducting", "ratio"];
+  if (t === -2) return ["Line stuck high: check the wiring on GPIO34", "ratio warn"];
+  if (t === -1) return ["Reading interrupted, showing the last value", "ratio"];
+  if (r >= OPEN_US) return ["Open at power-on, so any reading counts as pressure", "ratio"];
+  const x = t > 0 ? r / t : Infinity;
+  return [x >= 100 ? "Over 100× faster than resting" : x >= 1 ? `${x.toFixed(1)}× faster than resting` : "Slower than resting", "ratio"];
+}
+
+function render(f) {
+  lastAt = performance.now(); lastSrc = f.src;
+  rows.forEach((row, i) => {
+    const m = f.m[i], h = f.h[i], t = f.t ? f.t[i] : null, r = f.r ? f.r[i] : null;
+    const pct = Math.round(h * 100);
+    row.fill.style.width = pct + "%";
+    row.bar.setAttribute("aria-valuenow", pct);
+    row.el.classList.toggle("loaded", m > 0);
+    row.el.classList.toggle("alert", m >= ALERT_MS);
+    set(row.held, m >= ALERT_MS ? `Motor on, ${(m/1000).toFixed(1)} s` : m > 0 ? `Held ${(m/1000).toFixed(1)} s` : "Not loaded");
+    const [text, cls] = describe(t, r);
+    set(row.ratio, text, cls);
+    set(row.rd, t === null ? "" : `Reading ${t >= 0 ? num(t) + " µs" : "none"}`);
+    set(row.rs, r === null ? "" : `Resting ${r >= OPEN_US ? "open" : num(r) + " µs"}`);
+  });
+}
+
+function status() {
+  const age = performance.now() - lastAt;
+  const [text, state] = streamDown ? ["Server connection lost, retrying", "lost"]
+    : lastAt < 0 ? ["Waiting for the insole", ""]
+    : age < LIVE_MS ? [lastSrc === "cloud" ? "Live over the internet" : "Live over Wi-Fi", "live"]
+    : [`No data for ${Math.round(age/1000)} s`, "lost"];
+  set(byId("pillText"), text);
+  const cls = state ? "pill " + state : "pill";
+  if (byId("pill").className !== cls) byId("pill").className = cls;
+}
+
+byId("homeLink").href = byId("boardLink").href = "/" + location.search;
+const es = new EventSource("/events" + location.search);
+es.addEventListener("frame", e => { streamDown = false; render(JSON.parse(e.data)); });
+es.onopen = () => { streamDown = false; };
+es.onerror = () => { streamDown = es.readyState !== EventSource.OPEN; };
+setInterval(status, 500);
+status();
+</script>
+</body>
+</html>

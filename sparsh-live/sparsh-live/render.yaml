@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: sparsh
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: UDP_PORT
+        value: "0"
+      - key: DEVICE_KEY
+        sync: false
