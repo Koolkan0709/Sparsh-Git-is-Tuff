@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sparsh — foot load monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#0B2E35; --ground-2:#12414A; --ground-3:#1A535E;
+  --bone:#F2F5F4; --bone-2:#E4EBEA;
+  --slate:#9FB8BD; --slate-deep:#5C7C83;
+  --amber:#E8A33A; --ember:#D9722F; --alert:#C0402E;
+  --ink:#0B2E35; --body:#3C5A60; --hair:rgba(11,46,53,.12);
+  --serif:"Newsreader",Cambria,Georgia,serif;
+  --sans:"IBM Plex Sans",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bone);color:var(--body);font-family:var(--sans);font-size:16px;
+  line-height:1.55;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow-x:hidden}
+h1,h2,h3{font-family:var(--serif);color:var(--ink);font-weight:500;margin:0;line-height:1.12}
+p{margin:0}
+button{font-family:inherit;font-size:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input,select{font-family:inherit;font-size:inherit}
+:focus-visible{outline:2.5px solid var(--amber);outline-offset:3px;border-radius:3px}
+
+.topbar{position:fixed;inset:0 0 auto 0;height:68px;z-index:60;display:flex;align-items:center;
+  justify-content:space-between;padding:0 clamp(18px,4vw,44px);transition:color .5s var(--ease)}
+.brand{display:flex;align-items:center;gap:11px;font-family:var(--serif);font-size:21px;transition:color .5s var(--ease)}
+.brand .mark{width:18px;height:31px;display:block;overflow:visible}
+.mark .ac{fill:none;stroke:var(--amber);stroke-width:2.1;stroke-linecap:round;transition:stroke .5s var(--ease)}
+.topbar.on-light .mark .ac{stroke:var(--ember)}
+.topbar.on-dark{color:var(--bone)} .topbar.on-dark .brand{color:var(--bone)}
+.topbar.on-light .brand{color:var(--ink)}
+.topbar-act{font-size:14px;opacity:.75;display:none}
+.topbar-act.show{display:block} .topbar-act:hover{opacity:1}
+
+.page{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;visibility:hidden;opacity:0;pointer-events:none}
+.page.live{visibility:visible;opacity:1;pointer-events:auto}
+.page.enter{animation:irisIn .72s var(--ease) both;clip-path:circle(0% at var(--ox,50%) var(--oy,50%))}
+.page.leave{animation:dimOut .42s var(--ease) both}
+@keyframes irisIn{from{clip-path:circle(0% at var(--ox,50%) var(--oy,50%))}
+  to{clip-path:circle(150% at var(--ox,50%) var(--oy,50%))}}
+@keyframes dimOut{to{opacity:0;transform:scale(.985)}}
+.rise{animation:rise .62s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+#landing{background:var(--ground);color:#C6DADE}
+.hero{min-height:100%;display:grid;align-items:center;grid-template-columns:1.05fr .95fr;
+  gap:clamp(24px,5vw,72px);padding:96px clamp(18px,5vw,72px) 56px;max-width:1220px;margin:0 auto}
+.hero-copy h1{color:var(--bone);font-size:clamp(44px,6.4vw,82px);letter-spacing:-.018em;margin-bottom:6px}
+.hero-sub{font-family:var(--serif);font-style:italic;font-size:clamp(20px,2.5vw,29px);
+  line-height:1.34;color:#A7C4C9;max-width:19ch;margin-bottom:26px}
+.hero-body{max-width:46ch;font-size:16.5px;color:#8FB0B6;margin-bottom:34px}
+.cta{display:inline-flex;align-items:center;gap:12px;background:var(--amber);color:#17343A;
+  font-weight:600;padding:15px 28px;border-radius:999px;position:relative;overflow:hidden;
+  transition:transform .3s var(--ease),box-shadow .3s var(--ease);box-shadow:0 8px 26px rgba(232,163,58,.24)}
+.cta:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(232,163,58,.32)}
+.cta:active{transform:translateY(0)}
+.cta .dot{width:8px;height:8px;border-radius:50%;background:#17343A;opacity:.55}
+.hero-note{margin-top:22px;font-size:13px;color:#6E959C;max-width:40ch}
+.hero-stage{display:flex;justify-content:center;align-items:center}
+.hero-stage svg{width:min(320px,78vw);height:auto;filter:drop-shadow(0 26px 46px rgba(0,0,0,.34))}
+.cycle-label{margin-top:16px;text-align:center;font-size:13px;color:#8FB0B6;min-height:1.5em}
+.cycle-label b{color:var(--amber);font-weight:600}
+
+#setup{background:var(--bone)}
+.setup-wrap{max-width:660px;margin:0 auto;padding:108px clamp(18px,5vw,32px) 64px}
+.stepline{display:flex;align-items:center;gap:10px;margin-bottom:38px}
+.stepline i{width:9px;height:9px;border-radius:50%;background:var(--bone-2);
+  border:2px solid var(--slate);transition:all .45s var(--ease)}
+.stepline i.done{background:var(--slate-deep);border-color:var(--slate-deep)}
+.stepline i.now{background:var(--amber);border-color:var(--amber);transform:scale(1.5)}
+.stepline span{flex:1;height:2px;background:var(--bone-2);position:relative;overflow:hidden}
+.stepline span::after{content:"";position:absolute;inset:0;background:var(--slate-deep);
+  transform:scaleX(0);transform-origin:left;transition:transform .6s var(--ease)}
+.stepline span.filled::after{transform:scaleX(1)}
+.stepcount{font-size:13px;color:var(--slate-deep);margin-left:6px;font-style:normal}
+.step{display:none} .step.on{display:block;animation:rise .55s var(--ease) both}
+.step h2{font-size:clamp(28px,4vw,38px);letter-spacing:-.01em;margin-bottom:8px}
+.step>p.lede{margin-bottom:30px;max-width:48ch}
+.field{margin-bottom:20px}
+.field label{display:block;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:7px}
+.field .hint{font-weight:400;color:var(--slate-deep)}
+.field input,.field select{width:100%;padding:13px 15px;background:#fff;
+  border:1.5px solid var(--hair);border-radius:11px;color:var(--ink);
+  transition:border-color .25s,box-shadow .25s}
+.field input:focus,.field select:focus{outline:none;border-color:var(--amber);
+  box-shadow:0 0 0 4px rgba(232,163,58,.15)}
+.field.bad input,.field.bad select{border-color:var(--alert)}
+.field .err{font-size:13px;color:var(--alert);margin-top:6px;max-height:0;opacity:0;
+  overflow:hidden;transition:all .3s var(--ease)}
+.field.bad .err{max-height:3em;opacity:1}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chips{display:flex;gap:10px;flex-wrap:wrap}
+.chip{padding:11px 20px;border-radius:999px;background:#fff;border:1.5px solid var(--hair);
+  font-size:15px;color:var(--body);transition:all .25s var(--ease)}
+.chip:hover{border-color:var(--slate)}
+.chip[aria-pressed="true"]{background:var(--ground);border-color:var(--ground);color:var(--bone)}
+.nav{display:flex;gap:12px;align-items:center;margin-top:34px}
+.btn{padding:14px 26px;border-radius:999px;font-weight:600;font-size:15px;transition:all .28s var(--ease)}
+.btn.primary{background:var(--ground);color:var(--bone)}
+.btn.primary:hover{background:var(--ground-3);transform:translateY(-2px)}
+.btn.ghost{color:var(--slate-deep)} .btn.ghost:hover{color:var(--ink)}
+.disclaimer{margin-top:30px;font-size:12.5px;color:var(--slate-deep);max-width:52ch}
+
+#board{background:var(--bone)}
+.board-wrap{max-width:1320px;margin:0 auto;padding:92px clamp(16px,3.4vw,40px) 48px;
+  display:grid;grid-template-columns:minmax(0,430px) minmax(0,1fr);
+  gap:clamp(20px,3vw,40px);align-items:start}
+.board-wrap.dual{grid-template-columns:minmax(0,560px) minmax(0,1fr)}
+.greet{grid-column:1/-1;margin-bottom:4px}
+.greet h2{font-size:clamp(24px,3.2vw,33px);letter-spacing:-.01em}
+.greet p{font-size:15px;color:var(--slate-deep);margin-top:5px}
+.mapcard{background:#fff;border-radius:22px;padding:24px 20px 18px;
+  box-shadow:0 2px 3px rgba(11,46,53,.04),0 18px 44px -20px rgba(11,46,53,.22)}
+.mapcard h3{font-size:18px;margin-bottom:2px}
+.mapcard .sub{font-size:13.5px;color:var(--slate-deep);margin-bottom:12px}
+.feet{display:flex;justify-content:center;gap:10px}
+.feet .one{flex:1 1 0;min-width:0;text-align:center}
+.feet svg{width:100%;height:auto;max-width:280px;cursor:pointer;touch-action:none}
+.feet .cap{font-size:12.5px;font-weight:500;color:var(--slate-deep);margin-top:2px}
+.scale{margin-top:12px}
+.scale .bar{height:9px;border-radius:99px;
+  background:linear-gradient(90deg,#C3D2D4,#9FB8BD,#E8C24A,#E8833A,#B23A2E)}
+.scale .ends{display:flex;justify-content:space-between;font-size:12px;color:var(--slate-deep);margin-top:6px}
+.tip{font-size:12.5px;color:var(--slate-deep);text-align:center;margin-top:11px;line-height:1.45}
+.right{display:flex;flex-direction:column;gap:18px;min-width:0}
+.alertbox{border-radius:18px;padding:18px 20px;display:flex;gap:16px;align-items:flex-start;
+  background:#fff;border:1.5px solid var(--hair);
+  transition:background .45s var(--ease),border-color .45s var(--ease)}
+.alertbox .icon{flex:0 0 42px;height:42px;border-radius:50%;display:grid;place-items:center;
+  background:var(--bone-2);transition:background .45s var(--ease)}
+.alertbox .icon svg{width:19px;height:19px}
+.alertbox h4{margin:0;font-family:var(--sans);font-size:15.5px;font-weight:600;color:var(--ink)}
+.alertbox p{font-size:13.5px;color:var(--slate-deep);margin-top:3px}
+.alertbox.firing{background:#FBEAE6;border-color:rgba(192,64,46,.4);
+  animation:alertIn .5s var(--ease) both,breathe 2.4s ease-in-out .5s infinite}
+.alertbox.firing .icon{background:var(--alert)}
+.alertbox.firing .icon svg{stroke:#fff}
+.alertbox.firing h4{color:var(--alert)} .alertbox.firing p{color:#8A3A2C}
+@keyframes alertIn{from{opacity:0;transform:translateY(-12px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes breathe{0%,100%{box-shadow:0 0 0 0 rgba(192,64,46,.26)}50%{box-shadow:0 0 0 12px rgba(192,64,46,0)}}
+.relieve{margin-left:auto;align-self:center;flex:0 0 auto;padding:9px 17px;border-radius:999px;
+  background:var(--alert);color:#fff;font-size:13.5px;font-weight:600;white-space:nowrap}
+.relieve:hover{transform:translateY(-1px)}
+.alertbox:not(.firing) .relieve{display:none}
+.device .relieve{display:none}
+.device .controls{opacity:.45;pointer-events:none}
+.feet .off{opacity:.4}
+#loadList{display:flex;flex-direction:column}
+.lrow{display:none;align-items:center;gap:11px;padding:9px 0;
+  border-bottom:1px solid var(--bone-2)}
+.lrow.on{display:flex}
+.calm{order:99}
+.lrow .dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px;background:var(--slate)}
+.lrow .nm{font-size:13.5px;color:var(--ink);flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrow .nm em{font-style:normal;color:var(--slate-deep)}
+.lrow .mtr{flex:0 0 52px;height:4px;border-radius:99px;background:var(--bone-2);overflow:hidden}
+.lrow .mtr i{display:block;height:100%;border-radius:99px;transition:width .4s linear}
+.lrow .tm{font-size:15px;font-weight:600;color:var(--ink);
+  font-variant-numeric:tabular-nums;flex:0 0 46px;text-align:right}
+.lrow.hot .tm{color:var(--alert)}
+.lrow.lit{background:var(--bone)}
+.calm{font-size:13.5px;color:var(--slate-deep);padding:4px 0}
+.panel{background:#fff;border-radius:18px;padding:20px 22px;border:1.5px solid var(--hair)}
+.panel h3{font-size:17px;margin-bottom:3px}
+.panel .sub{font-size:13px;color:var(--slate-deep);margin-bottom:15px}
+.kv{display:flex;justify-content:space-between;gap:16px;padding:9px 0;
+  border-bottom:1px solid var(--bone-2);font-size:14px}
+.kv:last-child{border-bottom:0}
+.kv span{color:var(--slate-deep)} .kv b{font-weight:500;color:var(--ink);text-align:right}
+.sos{background:var(--ground);border-color:var(--ground)}
+.sos h3,.sos b{color:var(--bone)} .sos .sub,.sos span{color:#8FB0B6}
+.sos .kv{border-bottom-color:rgba(255,255,255,.1)}
+.log{max-height:186px;overflow-y:auto}
+.log .row-i{display:flex;gap:12px;align-items:baseline;padding:9px 0;
+  border-bottom:1px solid var(--bone-2);font-size:13.5px;animation:rise .4s var(--ease) both}
+.log .row-i:last-child{border-bottom:0}
+.log .row-i time{color:var(--slate-deep);font-size:12.5px;flex:0 0 62px}
+.log .empty{font-size:13.5px;color:var(--slate-deep);padding:6px 0}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ctrl{padding:9px 16px;border-radius:999px;border:1.5px solid var(--hair);background:#fff;
+  font-size:13.5px;font-weight:500;color:var(--body);transition:all .25s var(--ease)}
+.ctrl:hover{border-color:var(--slate)}
+.ctrl[aria-pressed="true"]{background:var(--ground);border-color:var(--ground);color:var(--bone)}
+.speed{margin-left:auto;display:flex;align-items:center;gap:9px;font-size:13px;color:var(--slate-deep)}
+.speed select{padding:8px 11px;border-radius:9px;border:1.5px solid var(--hair);background:#fff;color:var(--ink)}
+
+.sole-fill{fill:#EEF2F2}
+#landing .sole-fill{fill:#0F3C45}
+.ridge{fill:none;stroke:#2B4E56;stroke-width:1.15;stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:1;stroke-dashoffset:1;opacity:.72}
+.draw .ridge{animation:inkIn .95s var(--ease) forwards;animation-delay:calc(var(--i) * 62ms)}
+@keyframes inkIn{0%{stroke-dashoffset:1;opacity:0}18%{opacity:.72}100%{stroke-dashoffset:0;opacity:.72}}
+#landing .ridge{stroke:#7FB3BC;opacity:.8;stroke-width:1.2}
+#landing .draw .ridge{animation-duration:1.05s}
+@keyframes inkInHero{0%{stroke-dashoffset:1;opacity:0}18%{opacity:.8}100%{stroke-dashoffset:0;opacity:.8}}
+#landing .draw .ridge{animation-name:inkInHero}
+.ridge-hot{opacity:0}
+#heroHot{animation:hotRidge 15s var(--ease) infinite;animation-delay:2.2s}
+@keyframes hotRidge{0%,22%{opacity:0}46%{opacity:.5}58%,66%{opacity:.95}84%,100%{opacity:0}}
+.hot-ridge{fill:none;stroke:#F0B45A;stroke-width:1.5;stroke-linecap:round}
+.foot-breathe{transform-box:fill-box;transform-origin:50% 62%;
+  animation:breatheFoot 7.5s ease-in-out 2.4s infinite}
+@keyframes breatheFoot{0%,100%{transform:scale(1)}50%{transform:scale(1.014)}}
+.heat{opacity:.5;transform-box:fill-box;transform-origin:center}
+.ring{fill:none;stroke:var(--alert);stroke-width:2.4;opacity:0;
+  transform-box:fill-box;transform-origin:center}
+.ring.live{animation:ping 1.7s ease-out infinite}
+@keyframes ping{0%{transform:scale(.62);opacity:.85}80%,100%{transform:scale(1.9);opacity:0}}
+#heroRing{animation:heroRing 15s linear infinite}
+@keyframes heroRing{0%,52%{opacity:0;transform:scale(.6)}57%{opacity:.9;transform:scale(.7)}
+  70%{opacity:0;transform:scale(2)}71%{opacity:.9;transform:scale(.7)}
+  84%{opacity:0;transform:scale(2)}85%,100%{opacity:0;transform:scale(.6)}}
+#hh0{animation:heatFaint 15s var(--ease) infinite}
+#hh2{animation:heatCycle 15s var(--ease) infinite}
+#hh3{animation:heatMinor 15s var(--ease) infinite}
+#landing .heat{opacity:.09}
+#landing .mk .lbl,#landing .mk .val,#landing .mk .lead{display:none}
+@keyframes heatCycle{0%,6%{opacity:.14;fill:#9FB8BD;transform:scale(.72)}
+  26%{opacity:.42;fill:#E8C24A;transform:scale(.92)}
+  44%{opacity:.6;fill:#E8833A;transform:scale(1.04)}
+  56%,68%{opacity:.72;fill:#B23A2E;transform:scale(1.12)}
+  86%,100%{opacity:.14;fill:#9FB8BD;transform:scale(.72)}}
+@keyframes heatMinor{0%,10%{opacity:.12;fill:#9FB8BD;transform:scale(.7)}
+  40%,62%{opacity:.36;fill:#E8C24A;transform:scale(.94)}
+  88%,100%{opacity:.12;fill:#9FB8BD;transform:scale(.7)}}
+@keyframes heatFaint{0%,100%{opacity:.1;fill:#9FB8BD;transform:scale(.66)}
+  50%{opacity:.26;fill:#E8C24A;transform:scale(.82)}}
+
+.mk{cursor:pointer}
+.mk .rt-ring{fill:none;stroke:#12333A;stroke-width:1.4;opacity:.5;
+  transform-box:fill-box;transform-origin:center;
+  transition:stroke .5s var(--ease),opacity .5s var(--ease)}
+.mk.on .rt-ring{opacity:.9}
+.mk .rt-core{stroke:none;transition:fill .5s var(--ease)}
+.mk .lead{stroke:#12333A;stroke-width:.9;opacity:0;stroke-dasharray:2 2.4;
+  transition:opacity .45s var(--ease)}
+.mk.on .lead{opacity:.34}
+.mk .lbl,.mk .val,.mk .halo{opacity:0;transition:opacity .45s var(--ease)}
+.mk.on .lbl,.mk.on .val,.mk.on .halo{opacity:1}
+.mk .lbl,.mk .val{font-family:var(--sans);font-weight:600;letter-spacing:.02em}
+.mk .lbl{font-size:6.4px;fill:#4E6B71}
+.mk .val{font-size:9.2px;fill:#12333A;font-variant-numeric:tabular-nums;
+  transition:fill .5s var(--ease)}
+.mk .halo{fill:#fff;stroke:#fff;stroke-width:2.9px;stroke-linejoin:round;stroke-linecap:round}
+.mk.hot .halo,.mk.lit .halo{fill:#fff;stroke:#fff}
+.mk.hot .val{fill:var(--alert)}
+.mk.hot .rt-ring{stroke:var(--alert);opacity:1}
+.mk.lit .rt-ring{stroke-width:2.4}
+#landing .mk .rt-ring{stroke:rgba(255,255,255,.62);opacity:.9}
+.draw .mk{animation:mkIn .6s var(--ease) both;animation-delay:1.35s}
+@keyframes mkIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
+.mk{transform-box:fill-box;transform-origin:center}
+
+@media (max-width:980px){
+  .hero{grid-template-columns:1fr;padding-top:104px}
+  .hero-stage{order:-1} .hero-stage svg{width:min(230px,56vw)}
+  .board-wrap,.board-wrap.dual{grid-template-columns:1fr}
+}
+@media (max-width:560px){.row{grid-template-columns:1fr}.speed{margin-left:0;width:100%}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important}
+  .page.enter{clip-path:none}
+  .ridge{stroke-dashoffset:0!important;opacity:.72!important}
+  #landing .ridge{opacity:.8!important}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar on-dark">
+  <div class="brand">
+    <svg class="mark" viewBox="4 1 18 31" fill="currentColor" aria-hidden="true"><path d="M6 13C6 10 9.5 8.8 13 9.2C16.6 9.6 19.4 10.8 19.4 14C19.4 17.4 17.4 19.4 17.4 23.4C17.4 28 15.4 31 12.6 31C9.8 31 8.6 28.6 8.9 25.6C9.2 22.4 11 21.2 10.6 18.6C10.2 16.4 6 16.2 6 13Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><ellipse cx="7.4" cy="4.9" rx="2.3" ry="2.9"/><circle cx="11.5" cy="3.3" r="1.45"/><circle cx="14.6" cy="4" r="1.3"/><circle cx="17.2" cy="5.5" r="1.15"/><circle cx="19.2" cy="7.6" r="1"/><path class="ac" d="M14 14.6v5M11.5 17.1h5"/></svg>
+    Sparsh
+  </div>
+  <button class="topbar-act" id="restart">Start over</button>
+</header>
+
+<section class="page live" id="landing">
+  <div class="hero">
+    <div class="hero-copy">
+      <h1>Sparsh</h1>
+      <p class="hero-sub">The warning your feet can no longer give you.</p>
+      <p class="hero-body">Nerve damage takes away the ache that makes everyone else shift their
+        weight. Sparsh watches how long each part of your foot stays loaded, and tells you when it
+        is time to move — before the skin has anything to show.</p>
+      <button class="cta" id="begin"><span class="dot"></span> Set up monitoring</button>
+      <p class="hero-note">Takes about two minutes. Your details stay in this browser tab.</p>
+    </div>
+    <div class="hero-stage">
+      <div>
+        <div id="heroSlot"></div>
+        <p class="cycle-label" id="cycleLabel"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="page" id="setup">
+  <div class="setup-wrap">
+    <div class="stepline" aria-hidden="true">
+      <i class="now" data-dot="0"></i><span data-seg="0"></span>
+      <i data-dot="1"></i><span data-seg="1"></span>
+      <i data-dot="2"></i>
+      <em class="stepcount" id="stepCount">Step 1 of 3</em>
+    </div>
+
+    <div class="step on" data-step="0">
+      <h2>Who will wear this?</h2>
+      <p class="lede">This name is shown on the dashboard.</p>
+      <div class="field" data-k="name"><label for="f-name">Full name</label>
+        <input id="f-name" type="text" autocomplete="name" placeholder="Ramesh Iyer">
+        <p class="err">Enter a name so alerts can say who they are for.</p></div>
+      <div class="row">
+        <div class="field" data-k="phone"><label for="f-phone">Mobile number</label>
+          <input id="f-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210">
+          <p class="err">Enter at least 10 digits.</p></div>
+        <div class="field" data-k="age"><label for="f-age">Age</label>
+          <input id="f-age" type="number" min="1" max="120" placeholder="58">
+          <p class="err">Enter an age between 1 and 120.</p></div>
+      </div>
+      <div class="field" data-k="email">
+        <label for="f-email">Email <span class="hint">— optional</span></label>
+        <input id="f-email" type="email" autocomplete="email" placeholder="name@example.com">
+        <p class="err">That email address does not look right.</p></div>
+      <div class="nav"><button class="btn primary" data-go="1">Continue</button></div>
+    </div>
+
+    <div class="step" data-step="1">
+      <h2>About the foot</h2>
+      <p class="lede">These are shown above the load map so a clinician can read it in context.</p>
+      <div class="row">
+        <div class="field" data-k="height"><label for="f-height">Height <span class="hint">— cm</span></label>
+          <input id="f-height" type="number" min="60" max="240" placeholder="168">
+          <p class="err">Enter a height in centimetres.</p></div>
+        <div class="field" data-k="weight"><label for="f-weight">Weight <span class="hint">— kg</span></label>
+          <input id="f-weight" type="number" min="20" max="250" placeholder="74">
+          <p class="err">Enter a weight in kilograms.</p></div>
+      </div>
+      <div class="field" data-k="shoe"><label for="f-shoe">Shoe size <span class="hint">— UK</span></label>
+        <input id="f-shoe" type="number" min="1" max="15" step="0.5" placeholder="8">
+        <p class="err">Enter a UK shoe size.</p></div>
+      <div class="field"><label>Which foot is the insole in?</label>
+        <div class="chips" id="footPick">
+          <button class="chip" aria-pressed="true" data-v="Left">Left</button>
+          <button class="chip" aria-pressed="false" data-v="Right">Right</button>
+          <button class="chip" aria-pressed="false" data-v="Both">Both (demo)</button>
+        </div></div>
+      <div class="field"><label>How long has sensation been reduced?</label>
+        <div class="chips" id="dur">
+          <button class="chip" aria-pressed="true" data-v="Under a year">Under a year</button>
+          <button class="chip" aria-pressed="false" data-v="1–5 years">1–5 years</button>
+          <button class="chip" aria-pressed="false" data-v="Over 5 years">Over 5 years</button>
+          <button class="chip" aria-pressed="false" data-v="Not sure">Not sure</button>
+        </div></div>
+      <div class="nav"><button class="btn primary" data-go="2">Continue</button>
+        <button class="btn ghost" data-go="0">Back</button></div>
+    </div>
+
+    <div class="step" data-step="2">
+      <h2>Who should we call?</h2>
+      <p class="lede">The person to call if an alert goes unanswered.</p>
+      <div class="field" data-k="ecName"><label for="f-ecname">Emergency contact</label>
+        <input id="f-ecname" type="text" placeholder="Lakshmi Iyer">
+        <p class="err">Enter the name of someone we can contact.</p></div>
+      <div class="row">
+        <div class="field" data-k="ecPhone"><label for="f-ecphone">Their number</label>
+          <input id="f-ecphone" type="tel" inputmode="tel" placeholder="99887 76655">
+          <p class="err">Enter at least 10 digits.</p></div>
+        <div class="field" data-k="ecRel"><label for="f-ecrel">Relationship</label>
+          <select id="f-ecrel"><option>Spouse</option><option>Son</option><option>Daughter</option>
+            <option>Parent</option><option>Sibling</option><option>Carer</option>
+            <option>Friend</option><option>Neighbour</option></select>
+          <p class="err"></p></div>
+      </div>
+      <div class="field" data-k="clinic">
+        <label for="f-clinic">Clinic or doctor <span class="hint">— optional</span></label>
+        <input id="f-clinic" type="text" placeholder="Dr Sekar, Chennai Diabetic Foot Clinic">
+        <p class="err"></p></div>
+      <div class="nav"><button class="btn primary" id="finish">Start monitoring</button>
+        <button class="btn ghost" data-go="1">Back</button></div>
+      <p class="disclaimer">Sparsh is a monitoring aid built for a student engineering project.
+        It does not diagnose anything and is not a substitute for a clinical foot examination.</p>
+    </div>
+  </div>
+</section>
+
+<section class="page" id="board">
+  <div class="board-wrap" id="boardWrap">
+    <div class="greet rise">
+      <h2 id="hello">Good day</h2>
+      <p id="sinceLine">Monitoring</p>
+    </div>
+
+    <div class="mapcard rise" style="animation-delay:.06s">
+      <h3>Load across the foot</h3>
+      <p class="sub" id="footLabel">Accumulated today</p>
+      <div class="feet" id="feetStage"></div>
+      <div class="scale"><div class="bar"></div>
+        <div class="ends"><span>Relieved</span><span>Sustained load</span></div></div>
+      <p class="tip" id="tip">Press and hold any zone to load it, or turn on Standing still below.</p>
+    </div>
+
+    <div class="right">
+      <div class="alertbox rise" id="alertBox" style="animation-delay:.12s" role="status" aria-live="polite">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5C7C83" stroke-width="2.1" stroke-linecap="round">
+            <path d="M12 8v5"/><circle cx="12" cy="16.6" r="0.6" fill="currentColor"/>
+            <path d="M10.3 3.8 2.6 17.4a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0z"/>
+          </svg></div>
+        <div><h4 id="alertTitle">All zones within limits</h4>
+          <p id="alertText">Nothing has been loaded long enough to need a change of position.</p></div>
+        <button class="relieve" id="relieveBtn">I have moved</button>
+      </div>
+
+      <div class="panel rise" style="animation-delay:.16s">
+        <h3>Under load now</h3>
+        <p class="sub" id="loadSub">Zones carrying weight without relief</p>
+        <div id="loadList"></div></div>
+
+      <div class="panel rise" style="animation-delay:.2s">
+        <h3>Demo controls</h3>
+        <p class="sub" id="demoSub"></p>
+        <div class="controls">
+          <button class="ctrl" id="standBtn" aria-pressed="false">Standing still</button>
+          <button class="ctrl" id="walkBtn" aria-pressed="true">Walking</button>
+          <button class="ctrl" id="resetBtn">Reset timers</button>
+          <label class="speed">Speed
+            <select id="speedSel"><option value="1">Real time</option>
+              <option value="30">30×</option><option value="120">120×</option></select>
+          </label></div>
+      </div>
+
+      <div class="panel rise" style="animation-delay:.26s">
+        <h3>Today</h3><p class="sub">What the clinic would see</p>
+        <div id="todayList"></div></div>
+
+      <div class="panel rise" style="animation-delay:.32s">
+        <h3>Alert history</h3><p class="sub">Each time a zone crossed the threshold</p>
+        <div class="log" id="logList"><p class="empty">No alerts yet.</p></div></div>
+
+      <div class="panel sos rise" style="animation-delay:.38s">
+        <h3>Emergency contact</h3><p class="sub">Call if an alert goes unanswered</p>
+        <div id="sosList"></div></div>
+    </div>
+  </div>
+</section>
+
+<script>
+const RIDGE=[[0,"M22.2,41.0 21.0,41.1 19.8,41.0 18.8,40.9 17.8,40.6 16.9,40.2 16.0,39.8 15.2,39.4 14.6,38.8 13.8,38.2 13.2,37.7 12.6,37.0 12.0,36.4 11.5,35.8 10.8,35.0 10.5,34.2 10.0,33.4 9.5,32.6 9.1,31.8 8.7,31.0 8.3,30.0 8.0,29.1 7.6,28.2 7.3,27.2 7.1,26.2 6.8,25.2 6.6,24.2 6.6,23.0 6.3,22.0 6.3,20.8 6.3,19.5 6.3,18.2 6.3,17.0 6.6,16.0 6.7,14.8 6.8,13.8 7.1,12.8 7.3,11.8 7.7,10.8 8.0,9.9 8.3,9.0 8.8,8.2 9.2,7.3 9.7,6.5 10.2,5.8 10.8,5.2 11.3,4.5 12.0,3.8 12.8,3.3 13.3,2.8 14.2,2.2 15.0,1.9 15.9,1.5 16.9,1.2 18.0,1.1 19.2,1.1 20.2,1.4 21.2,1.6 22.2,2.0 23.0,2.3 23.8,2.8 24.5,3.3 25.2,3.8 26.0,4.5 26.7,5.0 27.2,5.8 27.8,6.3 28.2,7.1 28.8,7.8 29.2,8.7 29.8,9.4 30.2,10.2 30.5,11.0 30.9,12.0 31.2,12.9 31.6,13.8 31.9,14.8 32.1,15.8 32.4,16.8 32.6,17.8 32.8,18.9 32.9,20.0 32.9,21.2 33.1,22.2 32.9,23.2 32.9,24.5 32.9,25.8 32.7,26.8 32.5,28.0 32.4,29.0 32.0,30.0 31.8,31.0 31.5,31.8 31.2,32.8 30.8,33.6 30.3,34.5 29.9,35.2 29.4,36.0 28.8,36.8 28.2,37.4 27.8,38.1 27.0,38.7 26.2,39.2 25.7,39.8 24.8,40.2 24.0,40.5 23.0,40.9"],[0,"M41.1,295.8 40.8,294.9 39.8,294.6 38.7,294.5 37.5,294.3 36.5,294.1 35.5,293.8 34.5,293.5 33.7,293.2 32.8,292.9 31.8,292.5 31.0,292.2 30.2,291.8 29.2,291.3 28.5,290.9 27.8,290.4 27.0,289.9 26.2,289.4 25.5,288.9 24.8,288.3 24.1,287.8 23.5,287.2 22.8,286.5 22.2,285.9 21.6,285.2 21.0,284.7 20.5,283.9 19.8,283.2 19.3,282.5 18.8,281.8 18.3,281.0 17.8,280.2 17.3,279.5 16.8,278.8 16.5,278.0 16.0,277.1 15.6,276.2 15.2,275.5 14.8,274.5 14.5,273.6 14.1,272.8 13.8,271.8 13.5,270.8 13.2,269.8 13.0,269.0 12.8,267.8 12.5,266.8 12.3,265.8 12.1,264.8 12.1,263.5 11.8,262.5 11.8,261.2 11.8,260.0 11.8,258.8 11.8,257.5 11.8,256.2 12.0,255.2 12.1,254.0 12.2,252.9 12.3,251.8 12.6,250.8 12.8,249.8 13.0,248.5 13.1,247.5 13.3,246.5 13.6,245.5 13.8,244.5 14.1,243.5 14.3,242.5 14.6,241.5 14.8,240.5 15.1,239.5 15.3,238.5 15.6,237.5 15.8,236.5 16.1,235.5 16.4,234.5 16.7,233.5 17.0,232.5 17.1,231.5 17.4,230.5 17.6,229.5 17.9,228.5 18.1,227.5 18.3,226.5 18.5,225.4 18.6,224.2 18.9,223.2 19.0,222.2 19.1,221.0 19.2,219.9 19.4,218.8 19.4,217.5 19.4,216.2 19.4,215.0 19.4,213.8 19.4,212.5 19.1,211.5 19.1,210.2 18.9,209.2 18.8,208.1 18.6,207.0 18.4,206.0 18.1,205.0 17.9,204.0 17.6,203.0 17.4,202.0 17.1,201.0 16.8,200.0 16.6,199.0 16.2,198.1 16.0,197.2 15.6,196.2 15.3,195.2 15.0,194.5 14.6,193.5 14.3,192.5 14.0,191.8 13.6,190.8 13.2,189.8 13.0,189.0 12.6,188.0 12.2,187.2 11.8,186.2 11.5,185.3 11.1,184.5 10.8,183.6 10.5,182.8 10.1,181.8 9.7,181.0 9.3,180.0 9.0,179.1 8.6,178.2 8.2,177.3 8.0,176.5 7.6,175.5 7.2,174.6 7.0,173.8 6.6,172.8 6.2,171.8 6.0,171.0 5.6,170.0 5.3,169.0 5.1,168.0 4.8,167.1 4.5,166.1 4.2,165.2 4.0,164.2 3.7,163.2 3.5,162.2 3.2,161.1 3.1,160.0 2.9,159.0 2.6,158.0 2.5,157.0 2.3,155.8 2.1,154.8 2.0,153.8 1.9,152.5 1.7,151.5 1.6,150.2 1.5,149.1 1.4,148.0 1.4,146.8 1.2,145.6 1.1,144.5 1.1,143.2 1.1,142.0 1.1,140.8 1.1,139.5 1.1,138.2 1.1,137.0 1.1,135.8 1.1,134.5 1.1,133.2 1.1,132.0 1.1,130.8 1.1,129.5 1.1,128.2 1.1,127.0 1.3,126.0 1.4,124.8 1.4,123.5 1.4,122.2 1.5,121.0 1.6,120.0 1.6,118.8 1.6,117.5 1.7,116.2 1.9,115.2 1.9,114.0 1.9,112.8 1.9,111.5 2.1,110.5 2.1,109.2 2.1,108.0 2.1,106.8 2.4,105.8 2.4,104.5 2.4,103.2 2.4,102.0 2.6,101.0 2.6,99.8 2.6,98.5 2.9,97.5 2.9,96.2 3.0,95.0 3.1,94.0 3.1,92.8 3.4,91.8 3.5,90.5 3.6,89.5 3.8,88.4 3.9,87.2 4.1,86.2 4.3,85.2 4.5,84.2 4.7,83.0 5.0,82.0 5.2,81.0 5.5,80.0 5.7,79.0 6.0,78.2 6.3,77.2 6.6,76.2 7.0,75.2 7.2,74.4 7.6,73.5 8.0,72.7 8.3,71.8 8.8,70.9 9.2,70.0 9.7,69.2 10.1,68.5 10.6,67.8 11.1,67.0 11.6,66.2 12.1,65.5 12.6,64.8 13.1,64.0 13.8,63.3 14.2,62.6 14.8,62.0 15.5,61.3 16.0,60.6 16.6,60.0 17.2,59.3 18.0,58.8 18.6,58.2 19.2,57.6 20.0,57.1 20.6,56.5 21.3,56.0 22.0,55.3 22.8,54.8 23.5,54.3 24.2,53.8 25.0,53.3 25.8,52.8 26.5,52.3 27.2,52.0 28.1,51.5 28.9,51.0 29.8,50.6 30.5,50.2 31.4,49.8 32.2,49.3 33.2,49.0 34.0,48.6 34.9,48.2 35.8,47.9 36.8,47.6 37.7,47.2 38.5,47.0 39.5,46.6 40.5,46.3 41.5,46.1 42.5,45.8 43.5,45.6 44.5,45.3 45.5,45.1 46.5,44.9 47.5,44.6 48.8,44.6 49.8,44.4 50.8,44.2 52.0,44.1 53.2,44.1 54.2,43.9 55.5,43.9 56.8,43.8 57.5,43.2 57.5,42.3 57.0,41.7 56.5,41.0 56.0,40.2 55.5,39.4 55.0,38.6 54.8,37.6 54.5,36.6 54.2,35.6 53.7,35.0 52.8,35.0 52.0,35.8 51.7,36.5 51.2,37.3 50.8,38.1 50.2,38.8 49.5,39.4 48.9,40.0 48.2,40.5 47.2,40.9 46.2,41.1 45.0,41.1 44.0,40.9 43.2,40.5 42.4,40.0 41.8,39.4 41.1,38.8 40.5,38.2 40.0,37.5 39.5,36.8 39.0,35.8 38.6,35.0 38.2,34.2 37.9,33.2 37.6,32.2 37.3,31.2 37.1,30.2 36.9,29.2 36.6,28.2 36.6,27.0 36.6,25.8 36.4,24.8 36.5,23.7 36.6,22.5 36.9,21.5 37.1,20.5 37.2,19.2 37.5,18.4 37.8,17.5 38.2,16.5 38.6,15.8 39.0,14.9 39.5,14.2 40.1,13.5 40.7,12.8 41.3,12.2 42.0,11.7 43.0,11.3 44.0,11.1 45.0,11.0 46.0,11.2 46.8,11.5 47.6,12.0 48.4,12.5 49.0,13.1 49.7,13.8 50.2,14.5 50.7,15.2 51.2,16.0 51.5,16.8 51.9,17.8 52.3,18.5 52.6,19.5 52.9,20.5 53.1,21.5 53.4,22.5 54.0,23.2 54.9,23.2 55.5,22.7 56.0,21.8 56.5,21.1 57.0,20.3 57.6,19.8 58.3,19.2 59.1,18.8 60.0,18.4 61.0,18.1 62.2,18.2 63.1,18.5 63.9,19.0 64.7,19.5 65.2,20.1 65.9,20.8 66.4,21.5 66.8,22.2 67.3,23.0 67.7,24.0 67.9,25.0 68.2,26.0 68.4,27.0 68.7,28.0 68.9,29.0 69.2,30.0 70.0,30.4 70.8,30.0 71.2,29.1 71.8,28.3 72.2,27.6 72.8,27.0 73.5,26.3 74.2,25.8 75.0,25.3 76.0,25.1 77.0,25.0 78.0,25.2 78.8,25.6 79.5,26.1 80.2,26.8 80.8,27.3 81.2,28.2 81.7,29.0 82.0,29.8 82.4,30.8 82.5,31.9 82.7,33.0 82.9,34.0 82.9,35.2 83.2,36.1 84.2,36.3 85.0,35.8 85.6,35.2 86.2,34.6 86.8,34.0 87.8,33.6 88.5,33.2 89.8,33.1 90.8,33.3 91.5,33.8 92.2,34.5 92.8,35.0 93.3,35.8 93.7,36.8 94.0,37.5 94.2,38.8 94.4,39.8 94.5,40.9 94.5,41.8 94.4,43.0 94.2,44.0 93.9,45.0 93.5,46.0 93.2,46.8 92.8,47.8 92.4,48.5 91.8,49.2 91.2,49.8 90.5,50.4 89.8,50.9 88.8,51.2 87.8,51.4 87.0,52.0 87.0,52.9 87.5,53.6 88.2,54.2 88.9,54.8 89.5,55.3 90.2,56.0 90.8,56.6 91.4,57.2 92.0,57.8 92.5,58.6 93.2,59.2 93.7,60.0 94.2,60.8 94.7,61.5 95.0,62.2 95.5,63.2 95.9,64.0 96.3,64.8 96.7,65.8 97.0,66.7 97.3,67.5 97.5,68.5 97.8,69.5 98.0,70.5 98.2,71.7 98.4,72.8 98.7,73.8 98.7,75.0 99.0,75.8"],[0,"M99.8,86.4 98.9,86.8 98.7,87.8 98.7,89.0 98.5,90.2 98.4,91.2 98.4,92.5 98.2,93.5 98.2,94.8 97.9,95.8 97.9,97.0 97.7,98.0 97.5,99.2 97.4,100.2 97.3,101.5 97.2,102.5 97.0,103.6 96.9,104.8 96.8,105.8 96.7,107.0 96.5,108.1 96.4,109.2 96.3,110.5 96.2,111.5 96.2,112.8 95.9,113.8 95.9,115.0 95.8,116.1 95.7,117.2 95.7,118.5 95.4,119.5 95.4,120.8 95.2,121.8 95.2,123.0 95.2,124.2 94.9,125.2 94.9,126.5 94.8,127.8 94.7,128.8 94.7,130.0 94.4,131.0 94.4,132.2 94.4,133.5 94.2,134.5 94.2,135.8 93.9,136.8 93.9,138.0 93.8,139.1 93.7,140.2 93.5,141.5 93.4,142.5 93.3,143.8 93.2,144.8 93.0,146.0 92.9,147.0 92.8,148.1 92.7,149.2 92.4,150.2 92.4,151.5 92.2,152.5 92.0,153.6 91.9,154.8 91.7,155.8 91.5,156.8 91.4,158.0 91.2,159.0 90.9,160.0 90.8,161.2 90.7,162.2 90.4,163.2 90.2,164.2 90.0,165.3 89.8,166.5 89.7,167.5 89.4,168.5 89.2,169.5 89.0,170.6 88.8,171.8 88.7,172.8 88.4,173.8 88.2,174.8 87.9,175.8 87.8,176.8 87.5,178.0 87.4,179.0 87.2,180.0 86.9,181.0 86.7,182.0 86.5,183.1 86.3,184.2 86.2,185.2 85.9,186.2 85.7,187.2 85.5,188.3 85.3,189.5 85.2,190.5 84.9,191.5 84.8,192.6 84.5,193.8 84.4,194.8 84.2,195.8 84.0,197.0 83.9,198.0 83.7,199.0 83.5,200.2 83.4,201.2 83.2,202.3 83.2,203.5 82.9,204.5 82.9,205.8 82.7,206.8 82.7,208.0 82.5,209.1 82.4,210.2 82.4,211.5 82.2,212.5 82.2,213.8 82.2,215.0 82.2,216.2 81.9,217.2 81.9,218.5 81.9,219.8 81.9,221.0 81.9,222.2 81.9,223.5 81.9,224.8 81.9,226.0 81.9,227.2 81.9,228.5 81.9,229.8 81.9,231.0 82.2,232.0 82.2,233.2 82.2,234.5 82.2,235.8 82.2,237.0 82.2,238.2 82.2,239.5 82.2,240.8 82.2,242.0 82.2,243.2 82.0,244.3 81.9,245.5 81.9,246.8 81.9,248.0 81.8,249.2 81.7,250.2 81.7,251.5 81.4,252.5 81.4,253.8 81.2,254.8 81.0,256.0 80.9,257.0 80.7,258.0 80.4,259.0 80.2,260.1 80.0,261.2 79.8,262.2 79.5,263.2 79.3,264.2 79.0,265.1 78.7,266.0 78.4,267.0 78.0,268.0 77.8,268.8 77.4,269.8 77.0,270.8 76.7,271.5 76.3,272.5 75.9,273.2 75.5,274.1 75.0,275.0 74.7,275.8 74.2,276.6 73.8,277.3 73.2,278.2 72.8,278.9 72.3,279.8 71.8,280.4 71.2,281.2 70.8,281.8 70.2,282.5 69.7,283.2 69.0,283.9 68.4,284.5 67.9,285.2 67.2,285.9 66.6,286.5 65.9,287.0 65.2,287.7 64.5,288.2 63.8,288.8 63.2,289.2 62.4,289.8 61.6,290.2 60.8,290.8 60.0,291.2 59.2,291.5 58.3,292.0 57.5,292.4 56.6,292.8 55.8,293.0 54.8,293.4 53.8,293.7 52.8,293.9 51.8,294.1 50.8,294.4 49.8,294.6 48.5,294.7 47.8,295.2"],[1,"M22.2,37.5 21.0,37.8 19.8,37.5 18.6,37.2 17.8,36.9 17.0,36.4 16.2,35.8 15.6,35.2 15.0,34.6 14.4,34.0 13.9,33.2 13.4,32.5 13.0,31.8 12.5,30.9 12.0,30.0 11.7,29.2 11.3,28.2 11.0,27.4 10.7,26.5 10.5,25.5 10.2,24.5 10.0,23.2 9.8,22.0 9.8,20.8 9.8,19.5 9.8,18.2 9.8,17.0 10.0,15.8 10.2,14.5 10.5,13.2 10.8,12.5 11.1,11.5 11.4,10.5 11.8,9.8 12.2,9.0 12.8,8.1 13.3,7.5 13.9,6.8 14.5,6.2 15.2,5.6 16.0,5.1 17.0,4.8 18.0,4.5 19.2,4.6 20.2,4.8 21.2,5.2 22.0,5.6 22.8,6.2 23.4,6.8 24.0,7.2 24.6,8.0 25.2,8.7 25.8,9.5 26.2,10.2 26.7,11.0 27.1,11.8 27.5,12.7 27.9,13.5 28.2,14.5 28.5,15.5 28.8,16.5 29.0,17.5 29.2,18.5 29.4,19.8 29.5,21.0 29.6,22.2 29.5,23.5 29.5,24.8 29.4,26.0 29.2,27.2 29.0,28.3 28.7,29.2 28.4,30.2 28.1,31.2 27.7,32.0 27.2,32.9 26.9,33.8 26.2,34.4 25.8,35.1 25.2,35.8 24.5,36.3 23.8,36.9 22.9,37.2 Z"],[1,"M99.8,83.0 98.5,83.2 97.7,83.5 96.9,84.0 96.2,84.7 95.8,85.4 95.4,86.2 95.2,87.5 95.2,88.8 95.1,90.0 95.0,91.2 94.8,92.5 94.8,93.8 94.5,95.0 94.5,96.2 94.3,97.5 94.1,98.8 94.0,100.0 93.8,101.2 93.8,102.5 93.5,103.8 93.4,105.0 93.2,106.2 93.1,107.5 93.0,108.8 92.9,110.0 92.8,111.2 92.7,112.5 92.5,113.8 92.5,115.0 92.3,116.2 92.2,117.5 92.0,118.8 92.0,120.0 91.9,121.2 91.8,122.5 91.8,123.8 91.5,125.0 91.5,126.2 91.3,127.5 91.2,128.8 91.2,130.0 91.0,131.2 91.0,132.5 90.8,133.8 90.8,135.0 90.6,136.2 90.5,137.5 90.3,138.8 90.2,140.0 90.1,141.2 90.0,142.5 89.8,143.8 89.8,145.0 89.5,146.2 89.4,147.5 89.2,148.8 89.0,150.0 88.9,151.2 88.8,152.5 88.5,153.8 88.3,155.0 88.1,156.2 87.9,157.5 87.8,158.8 87.5,160.0 87.3,161.2 87.1,162.2 86.9,163.5 86.7,164.5 86.5,165.5 86.3,166.8 86.0,167.8 85.8,168.8 85.6,170.0 85.4,171.0 85.2,172.0 85.0,173.2 84.8,174.2 84.6,175.2 84.4,176.2 84.2,177.2 84.0,178.3 83.8,179.5 83.5,180.5 83.3,181.5 83.1,182.5 82.9,183.5 82.8,184.5 82.5,185.8 82.3,186.8 82.1,188.0 81.9,189.0 81.7,190.2 81.5,191.5 81.3,192.8 81.0,193.8 80.9,195.0 80.7,196.2 80.5,197.5 80.3,198.8 80.1,200.0 80.0,201.2 79.8,202.5 79.6,203.8 79.5,205.0 79.3,206.2 79.2,207.5 79.1,208.8 79.0,210.0 78.9,211.2 78.8,212.5 78.8,213.8 78.8,215.0 78.6,216.2 78.5,217.5 78.5,218.8 78.5,220.0 78.5,221.2 78.5,222.5 78.5,223.8 78.5,225.0 78.5,226.2 78.5,227.5 78.5,228.8 78.5,230.0 78.5,231.2 78.7,232.5 78.8,233.8 78.8,235.0 78.8,236.2 78.8,237.5 78.8,238.8 78.8,240.0 78.8,241.2 78.8,242.5 78.6,243.8 78.5,245.0 78.5,246.2 78.5,247.5 78.4,248.8 78.2,250.0 78.2,251.2 78.0,252.5 77.9,253.8 77.8,255.0 77.5,256.2 77.3,257.5 77.1,258.5 76.9,259.5 76.7,260.5 76.4,261.5 76.2,262.5 75.9,263.5 75.6,264.5 75.3,265.5 75.0,266.4 74.7,267.2 74.4,268.2 74.0,269.0 73.6,270.0 73.2,270.9 72.9,271.8 72.5,272.5 72.0,273.4 71.6,274.2 71.2,275.0 70.7,275.8 70.2,276.5 69.8,277.3 69.2,278.1 68.8,278.8 68.2,279.5 67.6,280.2 67.1,281.0 66.5,281.6 65.9,282.2 65.4,283.0 64.8,283.6 64.0,284.1 63.4,284.8 62.8,285.3 62.0,285.9 61.2,286.4 60.5,286.9 59.8,287.4 59.0,287.9 58.2,288.2 57.2,288.7 56.5,289.1 55.5,289.5 54.8,289.8 53.8,290.1 52.8,290.4 51.8,290.7 50.8,290.9 49.8,291.1 48.5,291.3 47.3,291.5 46.5,291.9 45.8,292.4 45.2,293.0 44.7,293.8 44.2,294.2 43.8,293.3 43.2,292.6 42.5,292.0 41.8,291.6 40.8,291.3 39.5,291.2 38.5,291.0 37.2,290.8 36.5,290.5 35.5,290.2 34.5,289.9 33.5,289.5 32.8,289.2 31.8,288.8 31.0,288.4 30.2,288.0 29.5,287.5 28.7,287.0 28.0,286.4 27.2,285.9 26.5,285.4 25.9,284.8 25.2,284.1 24.6,283.5 24.0,282.9 23.5,282.2 22.9,281.5 22.3,280.8 21.8,280.0 21.2,279.3 20.8,278.5 20.3,277.8 19.8,277.0 19.4,276.2 19.0,275.4 18.5,274.5 18.2,273.8 17.8,272.8 17.5,271.9 17.1,271.0 16.8,270.0 16.6,269.0 16.2,268.0 16.1,267.0 15.8,266.0 15.6,264.8 15.5,263.5 15.2,262.2 15.2,261.0 15.2,259.8 15.2,258.5 15.2,257.2 15.3,256.0 15.5,254.8 15.6,253.5 15.8,252.2 16.0,251.0 16.2,250.0 16.4,248.8 16.6,247.8 16.9,246.8 17.1,245.8 17.3,244.8 17.6,243.8 17.8,242.8 18.1,241.8 18.3,240.8 18.6,239.8 18.9,238.8 19.1,237.8 19.4,236.8 19.6,235.8 19.9,234.8 20.2,233.8 20.4,232.8 20.6,231.8 20.9,230.8 21.1,229.8 21.3,228.8 21.5,227.7 21.7,226.5 22.0,225.5 22.2,224.2 22.3,223.0 22.5,221.8 22.6,220.5 22.8,219.2 22.8,218.0 22.8,216.8 22.8,215.5 22.8,214.2 22.8,213.0 22.7,211.8 22.5,210.5 22.4,209.2 22.2,208.0 22.0,206.8 21.8,205.5 21.5,204.5 21.3,203.5 21.1,202.5 20.8,201.5 20.6,200.5 20.2,199.5 20.0,198.8 19.7,197.8 19.4,196.8 19.1,195.8 18.8,194.8 18.5,194.0 18.1,193.0 17.8,192.0 17.5,191.2 17.1,190.2 16.8,189.3 16.4,188.5 16.0,187.5 15.7,186.8 15.3,185.8 15.0,184.9 14.6,184.0 14.2,183.0 13.9,182.2 13.5,181.2 13.2,180.5 12.8,179.5 12.5,178.7 12.1,177.8 11.8,176.8 11.4,176.0 11.1,175.0 10.8,174.2 10.4,173.2 10.1,172.2 9.8,171.4 9.4,170.5 9.1,169.5 8.8,168.5 8.5,167.8 8.2,166.8 7.9,165.8 7.6,164.8 7.4,163.8 7.1,162.8 6.9,161.8 6.7,160.8 6.5,159.8 6.2,158.8 6.0,157.5 5.8,156.2 5.6,155.0 5.5,153.8 5.2,152.5 5.2,151.2 5.0,150.0 4.9,148.8 4.8,147.5 4.8,146.2 4.6,145.0 4.5,143.8 4.5,142.5 4.5,141.2 4.5,140.0 4.5,138.8 4.5,137.5 4.5,136.2 4.5,135.0 4.5,133.8 4.5,132.5 4.5,131.2 4.5,130.0 4.5,128.8 4.5,127.5 4.7,126.2 4.8,125.0 4.8,123.8 4.8,122.5 4.9,121.2 5.0,120.0 5.0,118.8 5.0,117.5 5.2,116.2 5.2,115.0 5.2,113.8 5.2,112.5 5.5,111.2 5.5,110.0 5.5,108.8 5.5,107.5 5.7,106.2 5.8,105.0 5.8,103.8 5.8,102.5 6.0,101.2 6.0,100.0 6.1,98.8 6.2,97.5 6.2,96.2 6.5,95.0 6.5,93.8 6.7,92.5 6.8,91.2 7.0,90.0 7.2,88.8 7.4,87.5 7.6,86.2 7.8,85.2 8.0,84.0 8.2,83.0 8.5,82.0 8.7,81.0 9.0,80.0 9.2,79.2 9.6,78.2 9.9,77.2 10.2,76.2 10.5,75.5 10.9,74.5 11.3,73.8 11.6,72.8 12.0,72.0 12.5,71.2 13.0,70.3 13.5,69.5 14.0,68.8 14.5,68.0 15.0,67.2 15.5,66.6 16.0,65.9 16.6,65.2 17.1,64.5 17.8,63.9 18.3,63.2 18.9,62.5 19.5,62.0 20.2,61.4 20.9,60.8 21.5,60.1 22.2,59.6 23.0,59.0 23.6,58.5 24.2,58.0 25.0,57.5 25.8,56.9 26.5,56.4 27.2,56.0 28.0,55.5 28.8,55.0 29.7,54.5 30.5,54.0 31.2,53.6 32.1,53.2 33.0,52.8 33.8,52.4 34.8,52.0 35.5,51.6 36.5,51.3 37.2,51.0 38.2,50.6 39.2,50.3 40.2,50.0 41.0,49.7 42.0,49.4 43.0,49.2 44.0,48.9 45.0,48.7 46.0,48.5 47.0,48.2 48.2,48.0 49.5,47.9 50.8,47.7 52.0,47.5 53.2,47.5 54.5,47.2 55.8,47.2 57.0,47.2 58.0,47.0 59.0,46.5 59.6,46.0 60.2,45.2 60.6,44.5 60.9,43.5 61.0,42.2 60.7,41.2 60.2,40.3 59.8,39.6 59.2,39.0 58.8,38.2 58.2,37.4 58.0,36.5 57.7,35.5 57.5,34.5 57.0,33.5 56.5,32.9 55.8,32.3 55.0,31.9 54.0,31.6 52.8,31.5 51.8,31.8 50.8,32.2 50.1,32.8 49.5,33.4 49.0,34.2 48.6,35.0 48.2,35.8 47.6,36.5 47.0,37.1 46.2,37.6 45.0,37.6 44.2,37.1 43.6,36.5 43.0,35.9 42.5,35.2 42.0,34.2 41.6,33.5 41.2,32.7 41.0,31.8 40.7,30.8 40.4,29.8 40.2,28.8 40.0,27.5 40.0,26.2 40.0,25.0 40.0,23.8 40.2,22.5 40.4,21.2 40.6,20.0 40.9,19.0 41.2,18.1 41.6,17.2 42.1,16.5 42.6,15.8 43.2,15.1 44.0,14.6 45.0,14.5 45.8,14.9 46.5,15.4 47.0,16.0 47.6,16.8 48.1,17.5 48.5,18.3 48.9,19.2 49.2,20.2 49.5,21.2 49.8,22.2 50.0,23.0 50.4,24.0 50.8,24.8 51.4,25.5 52.0,26.0 53.0,26.5 54.0,26.7 55.2,26.7 56.2,26.4 57.0,26.0 57.8,25.4 58.2,24.7 58.8,23.8 59.2,23.1 59.8,22.4 60.5,21.9 61.5,21.6 62.3,22.0 63.0,22.6 63.5,23.3 64.0,24.2 64.4,25.0 64.7,26.0 64.9,27.0 65.2,28.0 65.4,29.0 65.6,30.2 66.0,31.2 66.4,32.0 67.0,32.6 67.8,33.1 68.5,33.5 69.8,33.7 71.0,33.6 72.0,33.3 72.8,32.8 73.4,32.2 73.9,31.5 74.2,30.7 74.8,30.0 75.4,29.2 76.0,28.6 76.9,28.5 77.6,29.0 78.2,29.8 78.6,30.5 79.0,31.5 79.2,32.8 79.4,33.8 79.5,34.8 79.6,36.0 79.9,37.0 80.3,37.8 80.9,38.5 81.5,39.0 82.5,39.5 83.5,39.7 84.8,39.7 85.8,39.4 86.5,39.0 87.2,38.4 87.9,37.8 88.5,37.1 89.2,36.6 90.0,37.1 90.5,38.0 90.8,38.8 91.0,40.0 91.1,41.2 91.0,42.5 90.8,43.8 90.5,44.5 90.0,45.5 89.7,46.2 89.1,47.0 88.5,47.6 87.6,48.0 86.5,48.2 85.8,48.6 85.0,49.1 84.4,49.8 84.0,50.5 83.6,51.5 83.5,52.8 83.8,54.0 84.1,54.8 84.6,55.5 85.2,56.1 85.9,56.8 86.6,57.2 87.2,57.9 87.9,58.5 88.5,59.1 89.1,59.8 89.7,60.5 90.2,61.1 90.8,61.8 91.2,62.6 91.8,63.3 92.2,64.2 92.6,65.0 93.0,65.8 93.4,66.8 93.8,67.7 94.0,68.5 94.3,69.5 94.5,70.5 94.8,71.5 95.0,72.8 95.1,74.0 95.3,75.2 95.5,76.5 95.9,77.2 96.4,78.0 97.0,78.6 97.8,79.0 98.8,79.4"],[2,"M21.0,34.3 20.0,34.1 19.2,33.8 18.5,33.2 17.8,32.6 17.2,32.0 16.6,31.2 16.2,30.5 15.7,29.8 15.2,28.9 14.9,28.0 14.5,27.0 14.2,26.2 14.0,25.2 13.7,24.2 13.5,23.2 13.3,22.0 13.2,21.0 13.2,19.8 13.2,18.5 13.2,17.3 13.4,16.2 13.6,15.2 13.8,14.2 14.1,13.2 14.4,12.2 14.8,11.4 15.2,10.6 15.8,9.9 16.2,9.2 17.0,8.6 17.8,8.2 18.7,8.0 19.6,8.2 20.4,8.8 21.1,9.2 21.8,9.9 22.3,10.5 22.8,11.2 23.3,12.0 23.8,12.8 24.2,13.7 24.5,14.5 24.9,15.5 25.2,16.5 25.5,17.5 25.7,18.5 25.9,19.5 26.1,20.5 26.1,21.8 26.1,23.0 26.1,24.2 26.0,25.5 25.9,26.5 25.7,27.5 25.4,28.5 25.1,29.5 24.8,30.3 24.3,31.2 23.8,32.0 23.3,32.8 22.8,33.3 22.0,33.9 21.2,34.2 Z"],[2,"M45.5,33.5 45.1,32.8 44.7,32.0 44.3,31.0 44.1,30.0 43.8,29.0 43.6,28.0 43.4,27.0 43.4,25.8 43.3,24.5 43.5,23.3 43.6,22.2 43.8,21.2 44.1,20.2 44.5,19.2 44.8,18.8 45.3,19.5 45.7,20.5 46.0,21.3 46.2,22.3 46.5,23.2 46.8,24.2 47.2,25.2 47.5,26.0 48.0,26.8 48.6,27.5 49.2,28.2 50.0,28.7 49.5,29.0 48.8,29.5 48.0,30.1 47.3,30.8 46.8,31.4 46.2,32.1 45.8,33.0 Z"],[2,"M44.5,289.1 43.7,288.8 42.8,288.3 41.8,288.0 40.8,287.9 39.8,287.7 38.5,287.5 37.5,287.3 36.5,287.0 35.7,286.8 34.8,286.3 33.9,286.0 33.0,285.5 32.2,285.2 31.5,284.8 30.7,284.2 30.0,283.7 29.2,283.1 28.5,282.6 27.9,282.0 27.2,281.3 26.7,280.8 26.1,280.0 25.5,279.3 25.0,278.7 24.5,278.0 24.0,277.2 23.5,276.5 23.0,275.6 22.5,274.8 22.1,274.0 21.7,273.2 21.3,272.2 21.0,271.5 20.6,270.5 20.2,269.5 20.0,268.7 19.7,267.8 19.5,266.7 19.2,265.7 19.1,264.5 18.9,263.5 18.8,262.2 18.6,261.2 18.6,260.0 18.6,258.8 18.6,257.5 18.8,256.3 18.9,255.2 19.0,254.0 19.1,253.0 19.3,252.0 19.5,251.0 19.7,249.8 19.9,248.8 20.1,247.8 20.3,246.8 20.6,245.8 20.8,244.8 21.1,243.8 21.3,242.8 21.6,241.8 21.8,240.8 22.1,239.8 22.4,238.8 22.6,237.8 22.9,236.8 23.2,235.8 23.5,234.8 23.7,233.8 23.9,232.8 24.1,231.8 24.4,230.8 24.6,229.8 24.8,228.8 25.0,227.8 25.2,226.5 25.4,225.5 25.6,224.5 25.8,223.3 25.9,222.2 26.0,221.0 26.1,220.0 26.1,218.8 26.1,217.5 26.1,216.2 26.1,215.0 26.1,213.8 26.1,212.5 26.1,211.2 25.9,210.2 25.8,209.0 25.6,208.0 25.5,207.0 25.3,205.8 25.1,204.8 24.8,203.8 24.6,202.8 24.4,201.8 24.1,200.8 23.9,199.8 23.6,198.8 23.3,197.8 23.0,196.8 22.7,196.0 22.4,195.0 22.1,194.0 21.8,193.0 21.5,192.2 21.1,191.2 20.8,190.3 20.5,189.5 20.1,188.5 19.8,187.6 19.4,186.8 19.0,185.8 18.7,185.0 18.3,184.0 18.0,183.2 17.6,182.2 17.2,181.4 16.9,180.5 16.5,179.5 16.2,178.8 15.8,177.8 15.5,177.0 15.1,176.0 14.8,175.1 14.4,174.2 14.1,173.2 13.7,172.5 13.4,171.5 13.1,170.5 12.7,169.8 12.4,168.8 12.1,167.8 11.8,166.8 11.5,165.8 11.2,165.0 11.0,164.0 10.7,163.0 10.5,162.0 10.2,161.0 10.0,160.0 9.8,158.8 9.6,157.8 9.4,156.8 9.2,155.8 9.0,154.5 8.9,153.5 8.7,152.5 8.6,151.2 8.5,150.2 8.4,149.0 8.2,148.0 8.2,146.8 8.1,145.5 8.0,144.5 7.9,143.2 7.9,142.0 7.9,140.8 7.9,139.5 7.9,138.2 7.9,137.0 7.9,135.8 7.9,134.5 7.9,133.2 7.9,132.0 7.9,130.8 7.9,129.5 7.9,128.2 8.0,127.2 8.1,126.0 8.2,124.8 8.2,123.5 8.2,122.2 8.4,121.2 8.4,120.0 8.4,118.8 8.5,117.5 8.6,116.5 8.7,115.2 8.7,114.0 8.7,112.8 8.8,111.8 8.9,110.5 8.9,109.2 8.9,108.0 9.1,107.0 9.2,105.8 9.2,104.5 9.2,103.2 9.3,102.2 9.4,101.0 9.4,99.8 9.6,98.8 9.7,97.5 9.7,96.2 9.9,95.2 9.9,94.0 10.1,93.0 10.2,91.8 10.4,90.8 10.5,89.5 10.6,88.5 10.8,87.5 11.0,86.5 11.2,85.3 11.5,84.2 11.7,83.2 12.0,82.2 12.2,81.2 12.5,80.2 12.8,79.5 13.1,78.5 13.4,77.5 13.8,76.6 14.1,75.8 14.5,74.9 14.8,74.0 15.2,73.2 15.8,72.4 16.2,71.5 16.7,70.8 17.2,70.0 17.7,69.2 18.2,68.6 18.8,67.9 19.3,67.2 19.9,66.5 20.5,65.9 21.1,65.2 21.8,64.6 22.4,64.0 23.0,63.4 23.7,62.8 24.4,62.2 25.0,61.7 25.8,61.2 26.5,60.6 27.2,60.1 28.0,59.5 28.8,59.1 29.5,58.6 30.2,58.1 31.0,57.7 31.8,57.2 32.7,56.8 33.5,56.3 34.2,56.0 35.2,55.5 36.0,55.2 37.0,54.8 37.8,54.5 38.8,54.1 39.7,53.8 40.5,53.5 41.5,53.2 42.5,52.8 43.5,52.6 44.5,52.3 45.5,52.1 46.5,51.8 47.5,51.6 48.5,51.5 49.8,51.3 50.8,51.1 51.8,51.0 53.0,50.9 54.2,50.8 55.2,50.6 56.5,50.6 57.8,50.6 58.8,50.3 59.6,50.0 60.5,49.6 61.2,49.1 61.9,48.5 62.5,47.9 63.0,47.2 63.5,46.4 63.9,45.5 64.2,44.5 64.4,43.5 64.4,42.2 64.2,41.2 64.0,40.2 63.6,39.2 63.2,38.5 62.6,37.8 62.0,37.0 61.6,36.2 61.2,35.5 61.0,34.5 60.7,33.5 60.3,32.5 59.9,31.8 59.4,31.0 58.8,30.3 58.1,29.8 58.0,29.3 58.8,28.9 59.5,28.4 60.2,27.8 60.8,27.1 61.2,26.4 61.5,27.3 61.8,28.3 62.0,29.3 62.2,30.5 62.4,31.5 62.8,32.4 63.2,33.2 63.7,34.0 64.2,34.7 64.9,35.2 65.5,35.8 66.3,36.2 67.2,36.7 68.2,37.0 69.2,37.1 70.5,37.1 71.5,37.0 72.5,36.7 73.5,36.3 74.2,35.9 75.0,35.4 75.7,34.8 76.1,34.8 76.1,36.0 76.3,37.0 76.6,38.0 77.0,38.9 77.5,39.7 78.0,40.4 78.6,41.0 79.2,41.6 80.0,42.1 80.9,42.5 81.8,42.8 82.8,43.1 84.0,43.1 85.2,43.1 86.2,42.8 87.1,42.5 87.3,43.2 86.9,44.0 86.5,44.8 85.5,45.0 84.5,45.4 83.8,45.8 83.0,46.4 82.3,47.0 81.8,47.7 81.2,48.4 80.8,49.2 80.5,50.0 80.2,51.0 80.1,52.2 80.2,53.5 80.4,54.5 80.7,55.5 81.0,56.2 81.5,57.0 82.1,57.8 82.8,58.4 83.3,59.0 84.0,59.6 84.8,60.2 85.3,60.8 86.0,61.4 86.6,62.0 87.1,62.8 87.8,63.5 88.2,64.2 88.8,65.0 89.2,65.8 89.5,66.5 90.0,67.5 90.3,68.2 90.7,69.2 90.9,70.2 91.2,71.2 91.4,72.2 91.6,73.2 91.7,74.5 91.9,75.5 92.0,76.5 92.3,77.5 92.7,78.5 93.1,79.2 93.6,80.0 94.2,80.7 94.9,81.2 94.2,81.8 93.6,82.5 93.1,83.2 92.7,84.0 92.3,85.0 92.0,86.0 91.9,87.0 91.8,88.2 91.7,89.2 91.6,90.5 91.5,91.7 91.4,92.8 91.2,94.0 91.1,95.0 91.0,96.2 90.9,97.2 90.7,98.2 90.6,99.5 90.5,100.5 90.4,101.8 90.2,102.8 90.1,104.0 89.9,105.0 89.8,106.2 89.7,107.2 89.6,108.5 89.5,109.5 89.4,110.8 89.3,112.0 89.1,113.0 89.1,114.2 88.9,115.2 88.8,116.5 88.8,117.7 88.6,118.8 88.6,120.0 88.4,121.0 88.3,122.2 88.3,123.5 88.1,124.5 88.1,125.8 88.0,126.8 87.9,128.0 87.8,129.2 87.7,130.2 87.6,131.5 87.5,132.7 87.4,133.8 87.3,135.0 87.2,136.0 87.1,137.2 86.9,138.2 86.8,139.5 86.7,140.5 86.6,141.8 86.5,142.8 86.4,144.0 86.2,145.0 86.1,146.2 85.9,147.2 85.8,148.5 85.7,149.5 85.5,150.7 85.4,151.8 85.2,152.8 85.0,154.0 84.9,155.0 84.7,156.0 84.5,157.2 84.4,158.2 84.2,159.2 84.0,160.2 83.8,161.5 83.6,162.5 83.4,163.5 83.2,164.5 83.0,165.5 82.8,166.7 82.5,167.8 82.4,168.8 82.2,169.8 82.0,170.8 81.8,172.0 81.5,173.0 81.4,174.0 81.2,175.0 80.9,176.0 80.7,177.0 80.5,178.2 80.3,179.2 80.1,180.2 79.9,181.2 79.7,182.2 79.5,183.2 79.2,184.5 79.0,185.5 78.9,186.5 78.7,187.5 78.5,188.5 78.3,189.8 78.1,190.8 77.9,191.8 77.7,192.8 77.6,194.0 77.4,195.0 77.2,196.0 77.0,197.2 76.9,198.2 76.7,199.2 76.6,200.5 76.4,201.5 76.3,202.8 76.2,203.8 76.1,205.0 75.9,206.0 75.8,207.2 75.7,208.2 75.6,209.5 75.5,210.8 75.4,211.8 75.3,213.0 75.3,214.2 75.3,215.5 75.1,216.5 75.1,217.8 75.1,219.0 75.1,220.2 75.1,221.5 75.1,222.8 75.1,224.0 75.1,225.2 75.1,226.5 75.1,227.8 75.1,229.0 75.1,230.2 75.1,231.5 75.2,232.8 75.3,233.8 75.3,235.0 75.3,236.2 75.3,237.5 75.3,238.8 75.3,240.0 75.3,241.2 75.3,242.5 75.2,243.5 75.1,244.8 75.1,246.0 75.1,247.2 75.0,248.2 74.9,249.5 74.8,250.8 74.6,251.8 74.5,253.0 74.4,254.0 74.2,255.0 74.0,256.2 73.9,257.2 73.7,258.2 73.4,259.2 73.2,260.2 73.0,261.2 72.7,262.2 72.4,263.2 72.1,264.2 71.8,265.2 71.5,266.0 71.2,267.0 70.8,268.0 70.4,268.8 70.0,269.8 69.7,270.5 69.2,271.3 68.8,272.2 68.4,273.0 67.9,273.8 67.5,274.5 67.0,275.3 66.5,276.1 66.0,276.8 65.4,277.5 64.9,278.2 64.3,279.0 63.8,279.6 63.1,280.2 62.5,281.0 61.9,281.5 61.2,282.1 60.5,282.7 59.8,283.2 59.1,283.8 58.3,284.2 57.5,284.8 56.8,285.2 56.0,285.5 55.0,286.0 54.2,286.3 53.2,286.7 52.3,287.0 51.5,287.2 50.2,287.5 49.2,287.7 48.2,287.9 47.2,288.0 46.2,288.3 45.2,288.7 44.5,289.1 Z"],[3,"M20.8,30.4 20.0,30.0 19.4,29.2 19.0,28.5 18.5,27.7 18.1,26.8 17.8,26.0 17.4,25.0 17.1,24.0 16.9,23.0 16.7,22.0 16.6,20.8 16.6,19.5 16.6,18.2 16.7,17.0 16.9,16.0 17.1,15.0 17.4,14.0 17.8,13.0 18.2,12.2 18.8,11.7 19.3,12.2 19.9,13.0 20.4,13.8 20.8,14.5 21.2,15.4 21.6,16.2 21.9,17.2 22.2,18.2 22.4,19.2 22.6,20.2 22.7,21.5 22.7,22.8 22.7,24.0 22.6,25.2 22.4,26.2 22.2,27.2 21.9,28.2 21.5,29.2 21.1,30.0 Z"],[3,"M44.5,285.3 43.5,285.0 42.6,284.8 41.5,284.6 40.5,284.4 39.5,284.2 38.5,284.0 37.5,283.7 36.5,283.4 35.5,283.0 34.8,282.6 34.0,282.2 33.1,281.8 32.4,281.2 31.7,280.8 31.0,280.2 30.2,279.5 29.7,279.0 29.0,278.3 28.5,277.6 28.0,277.0 27.4,276.2 26.9,275.5 26.4,274.8 26.0,274.0 25.5,273.2 25.0,272.2 24.7,271.5 24.3,270.5 24.0,269.8 23.6,268.8 23.3,267.8 23.0,266.8 22.8,265.8 22.5,264.8 22.4,263.8 22.2,262.7 22.1,261.5 22.1,260.2 22.1,259.0 22.1,257.8 22.2,256.5 22.3,255.5 22.4,254.2 22.5,253.2 22.8,252.1 22.9,251.0 23.1,250.0 23.3,249.0 23.6,248.0 23.8,247.0 24.0,246.0 24.3,245.0 24.5,244.0 24.8,243.0 25.0,242.0 25.3,241.0 25.6,240.0 25.8,239.0 26.1,238.0 26.3,237.0 26.6,236.0 26.9,235.0 27.1,234.0 27.3,233.0 27.6,232.0 27.8,231.0 28.0,230.0 28.2,228.8 28.5,227.8 28.7,226.8 28.8,225.8 29.0,224.6 29.2,223.5 29.3,222.5 29.4,221.2 29.5,220.2 29.6,219.0 29.6,217.8 29.6,216.5 29.6,215.2 29.6,214.0 29.6,212.8 29.5,211.5 29.4,210.5 29.3,209.2 29.1,208.2 29.0,207.2 28.8,206.0 28.6,205.0 28.4,204.0 28.2,203.0 28.0,202.0 27.7,201.0 27.5,200.0 27.2,199.0 26.9,198.0 26.6,197.0 26.3,196.0 26.0,195.0 25.7,194.2 25.4,193.2 25.1,192.2 24.8,191.3 24.4,190.5 24.1,189.5 23.8,188.6 23.4,187.8 23.1,186.8 22.8,186.0 22.4,185.0 22.0,184.1 21.7,183.2 21.3,182.2 21.0,181.5 20.6,180.5 20.2,179.7 19.9,178.8 19.5,177.8 19.2,177.0 18.8,176.0 18.5,175.2 18.1,174.2 17.8,173.5 17.4,172.5 17.0,171.5 16.7,170.8 16.4,169.8 16.0,168.8 15.7,168.0 15.4,167.0 15.1,166.0 14.8,165.0 14.5,164.0 14.2,163.0 14.0,162.2 13.8,161.2 13.5,160.2 13.3,159.0 13.1,158.0 12.9,157.0 12.7,156.0 12.5,154.9 12.3,153.8 12.2,152.8 12.0,151.5 11.9,150.5 11.8,149.2 11.7,148.2 11.6,147.0 11.5,145.8 11.5,144.8 11.3,143.5 11.3,142.2 11.3,141.0 11.3,139.8 11.3,138.5 11.3,137.2 11.3,136.0 11.3,134.8 11.3,133.5 11.3,132.2 11.3,131.0 11.3,129.8 11.3,128.5 11.4,127.2 11.5,126.2 11.6,125.0 11.6,123.8 11.6,122.5 11.8,121.5 11.8,120.2 11.8,119.0 11.9,117.8 12.0,116.8 12.1,115.5 12.1,114.2 12.1,113.0 12.2,111.8 12.3,110.8 12.3,109.5 12.3,108.2 12.5,107.0 12.5,106.0 12.6,104.8 12.6,103.5 12.8,102.3 12.8,101.2 12.8,100.0 13.0,98.8 13.0,97.8 13.1,96.5 13.3,95.5 13.3,94.2 13.5,93.1 13.6,92.0 13.8,91.0 13.9,89.8 14.1,88.8 14.2,87.6 14.5,86.5 14.7,85.5 14.9,84.5 15.1,83.5 15.4,82.5 15.7,81.5 16.0,80.5 16.2,79.7 16.6,78.8 17.0,77.8 17.3,77.0 17.7,76.0 18.0,75.2 18.5,74.5 19.0,73.5 19.5,72.8 20.0,72.0 20.5,71.2 21.0,70.6 21.5,69.9 22.1,69.2 22.7,68.5 23.2,67.9 23.8,67.2 24.5,66.7 25.2,66.0 25.8,65.5 26.5,64.9 27.2,64.3 27.9,63.8 28.6,63.2 29.3,62.8 30.0,62.2 30.9,61.8 31.6,61.2 32.5,60.8 33.2,60.3 34.0,59.9 34.8,59.5 35.8,59.0 36.5,58.7 37.5,58.3 38.2,57.9 39.2,57.5 40.0,57.2 41.0,56.9 42.0,56.6 43.0,56.2 43.8,56.0 44.8,55.8 45.8,55.5 46.8,55.2 48.0,55.0 49.0,54.8 50.0,54.7 51.2,54.5 52.2,54.4 53.5,54.3 54.5,54.2 55.8,54.0 57.0,54.0 58.0,53.9 59.1,53.8 60.0,53.5 61.0,53.1 61.8,52.8 62.6,52.2 63.3,51.8 64.0,51.2 64.7,50.5 65.2,49.9 65.8,49.2 66.2,48.5 66.8,47.5 67.1,46.8 67.4,45.8 67.6,44.8 67.8,43.8 67.8,42.5 67.7,41.5 67.8,40.3 68.9,40.5 70.0,40.5 71.1,40.5 72.2,40.3 73.2,40.1 73.9,40.2 74.3,41.0 74.8,41.8 75.3,42.5 76.0,43.2 76.6,43.8 77.2,44.3 78.0,44.8 78.8,45.3 78.8,46.0 78.3,46.8 77.9,47.5 77.5,48.3 77.2,49.2 76.9,50.2 76.8,51.4 76.7,52.5 76.8,53.6 76.9,54.8 77.2,55.8 77.5,56.7 77.9,57.5 78.3,58.2 78.8,59.0 79.3,59.8 80.0,60.5 80.5,61.0 81.2,61.7 81.9,62.2 82.5,62.8 83.2,63.5 83.8,64.0 84.4,64.8 85.0,65.5 85.5,66.2 86.0,67.0 86.4,67.8 86.8,68.5 87.1,69.5 87.5,70.5 87.7,71.5 88.0,72.5 88.2,73.5 88.3,74.5 88.5,75.8 88.6,76.8 88.8,77.8 89.1,78.8 89.5,79.8 89.9,80.5 90.3,81.2 89.9,82.0 89.5,82.8 89.1,83.8 88.8,84.8 88.6,85.8 88.5,86.8 88.5,88.0 88.3,89.2 88.2,90.2 88.1,91.5 88.0,92.5 87.8,93.8 87.7,94.8 87.6,96.0 87.5,97.0 87.3,98.2 87.2,99.2 87.1,100.5 87.0,101.5 86.8,102.8 86.7,103.8 86.5,105.0 86.5,106.0 86.3,107.2 86.2,108.2 86.1,109.5 86.0,110.5 85.9,111.8 85.7,112.8 85.7,114.0 85.5,115.2 85.5,116.2 85.3,117.5 85.2,118.5 85.2,119.8 85.0,121.0 85.0,122.0 84.9,123.2 84.7,124.2 84.7,125.5 84.6,126.8 84.5,127.8 84.4,129.0 84.2,130.2 84.2,131.2 84.1,132.5 84.0,133.5 83.9,134.8 83.8,135.9 83.7,137.0 83.5,138.2 83.5,139.2 83.3,140.5 83.2,141.5 83.1,142.8 83.0,143.8 82.8,145.0 82.7,146.0 82.5,147.2 82.4,148.2 82.2,149.4 82.1,150.5 82.0,151.5 81.8,152.8 81.6,153.8 81.5,154.8 81.3,156.0 81.1,157.0 80.9,158.0 80.8,159.1 80.5,160.2 80.3,161.2 80.2,162.2 80.0,163.2 79.8,164.4 79.5,165.5 79.3,166.5 79.1,167.5 79.0,168.5 78.8,169.7 78.5,170.8 78.3,171.8 78.1,172.8 77.9,173.8 77.7,174.8 77.5,175.9 77.3,177.0 77.1,178.0 76.9,179.0 76.7,180.0 76.5,181.0 76.2,182.2 76.0,183.2 75.8,184.2 75.6,185.2 75.5,186.2 75.2,187.4 75.1,188.5 74.9,189.5 74.7,190.5 74.5,191.7 74.3,192.8 74.2,193.8 74.0,194.9 73.8,196.0 73.6,197.0 73.5,198.0 73.3,199.2 73.2,200.2 73.0,201.5 72.9,202.5 72.8,203.7 72.7,204.8 72.5,205.9 72.5,207.0 72.3,208.2 72.2,209.2 72.1,210.5 72.0,211.5 72.0,212.8 72.0,214.0 71.9,215.2 71.7,216.2 71.7,217.5 71.7,218.8 71.7,220.0 71.7,221.2 71.7,222.5 71.7,223.8 71.7,225.0 71.7,226.2 71.7,227.5 71.7,228.8 71.7,230.0 71.7,231.2 71.8,232.3 71.9,233.5 72.0,234.8 72.0,236.0 72.0,237.2 72.0,238.5 72.0,239.8 72.0,241.0 72.0,242.2 71.8,243.5 71.7,244.5 71.7,245.8 71.7,247.0 71.6,248.2 71.5,249.2 71.4,250.5 71.2,251.5 71.1,252.8 71.0,253.8 70.8,255.0 70.6,256.0 70.4,257.0 70.2,258.0 70.0,259.2 69.8,260.2 69.5,261.2 69.2,262.0 68.9,263.0 68.6,264.0 68.3,265.0 68.0,265.8 67.6,266.8 67.2,267.6 66.9,268.5 66.5,269.2 66.0,270.2 65.6,271.0 65.2,271.8 64.7,272.5 64.2,273.3 63.8,274.0 63.2,274.8 62.7,275.5 62.1,276.2 61.5,277.0 61.0,277.5 60.4,278.2 59.8,278.8 59.0,279.5 58.4,280.0 57.8,280.5 57.0,281.1 56.2,281.5 55.5,282.0 54.5,282.5 53.8,282.8 52.8,283.2 52.0,283.5 51.0,283.8 50.0,284.1 49.0,284.3 47.8,284.5 46.8,284.6 45.8,284.9 44.8,285.2 Z"],[4,"M45.0,281.5 43.8,281.5 42.8,281.3 41.8,281.2 40.7,281.0 39.5,280.8 38.6,280.5 37.8,280.2 36.8,279.8 36.0,279.4 35.1,279.0 34.4,278.5 33.7,278.0 33.0,277.4 32.3,276.8 31.8,276.2 31.2,275.5 30.6,274.8 30.0,274.0 29.5,273.3 29.0,272.5 28.6,271.8 28.2,271.0 27.8,270.1 27.4,269.2 27.0,268.2 26.7,267.5 26.5,266.5 26.2,265.5 26.0,264.5 25.8,263.3 25.6,262.2 25.5,261.2 25.5,260.0 25.5,258.8 25.5,257.5 25.6,256.5 25.7,255.2 25.8,254.2 26.0,253.2 26.2,252.0 26.4,251.0 26.6,250.0 26.8,249.0 27.0,248.0 27.3,247.0 27.5,246.0 27.8,245.0 28.0,244.0 28.3,243.0 28.6,242.0 28.8,241.0 29.1,240.0 29.3,239.0 29.6,238.0 29.9,237.0 30.1,236.0 30.4,235.0 30.6,234.0 30.8,233.0 31.1,232.0 31.3,231.0 31.5,229.9 31.7,228.8 31.9,227.8 32.1,226.8 32.3,225.8 32.4,224.5 32.6,223.5 32.7,222.2 32.8,221.2 32.9,220.0 33.0,218.8 33.0,217.5 33.0,216.2 33.0,215.0 33.0,213.8 33.0,212.5 32.9,211.2 32.8,210.1 32.6,209.0 32.5,207.8 32.3,206.8 32.2,205.8 32.0,204.6 31.8,203.5 31.5,202.5 31.3,201.5 31.1,200.5 30.8,199.5 30.6,198.5 30.3,197.5 30.0,196.5 29.8,195.6 29.5,194.8 29.2,193.8 28.8,192.8 28.5,191.8 28.2,191.0 27.9,190.0 27.5,189.0 27.2,188.2 26.9,187.2 26.5,186.3 26.2,185.5 25.8,184.5 25.5,183.7 25.1,182.8 24.8,181.8 24.4,181.0 24.0,180.0 23.7,179.2 23.3,178.2 23.0,177.4 22.6,176.5 22.2,175.6 21.9,174.8 21.5,173.8 21.2,173.0 20.8,172.0 20.5,171.1 20.2,170.2 19.8,169.2 19.5,168.3 19.2,167.5 18.8,166.5 18.5,165.5 18.2,164.6 18.0,163.8 17.7,162.8 17.4,161.8 17.1,160.8 16.9,159.8 16.7,158.8 16.5,157.8 16.2,156.6 16.1,155.5 15.9,154.5 15.7,153.5 15.6,152.2 15.4,151.2 15.3,150.0 15.2,149.0 15.1,147.8 15.0,146.8 14.9,145.5 14.8,144.2 14.7,143.2 14.7,142.0 14.7,140.8 14.7,139.5 14.7,138.2 14.7,137.0 14.7,135.8 14.7,134.5 14.7,133.2 14.7,132.0 14.7,130.8 14.7,129.5 14.7,128.2 14.9,127.2 14.9,126.0 15.0,124.8 15.0,123.5 15.1,122.5 15.2,121.2 15.2,120.0 15.2,118.8 15.3,117.8 15.4,116.5 15.5,115.2 15.5,114.0 15.5,113.0 15.7,111.8 15.7,110.5 15.7,109.2 15.8,108.2 15.9,107.0 16.0,105.8 16.0,104.5 16.0,103.5 16.2,102.2 16.2,101.0 16.2,99.9 16.4,98.8 16.5,97.5 16.6,96.5 16.7,95.2 16.8,94.2 16.9,93.0 17.1,92.0 17.2,90.8 17.3,89.8 17.5,88.8 17.7,87.5 17.9,86.5 18.1,85.5 18.4,84.5 18.6,83.5 18.9,82.5 19.2,81.5 19.5,80.7 19.8,79.8 20.2,78.8 20.6,78.0 21.0,77.0 21.4,76.2 21.8,75.5 22.2,74.7 22.8,74.0 23.2,73.2 23.8,72.5 24.4,71.8 25.0,71.0 25.5,70.5 26.2,69.8 26.8,69.2 27.5,68.5 28.1,68.0 28.8,67.5 29.5,66.9 30.2,66.3 31.0,65.8 31.7,65.2 32.5,64.8 33.2,64.2 34.0,63.8 34.8,63.4 35.5,62.9 36.4,62.5 37.2,62.1 38.0,61.7 39.0,61.3 39.8,61.0 40.8,60.6 41.7,60.2 42.5,60.0 43.5,59.7 44.5,59.3 45.5,59.1 46.5,58.8 47.5,58.6 48.5,58.4 49.5,58.2 50.8,58.0 51.8,57.9 52.8,57.7 54.0,57.7 55.2,57.5 56.2,57.5 57.5,57.4 58.8,57.3 59.8,57.1 60.8,56.8 61.7,56.5 62.5,56.2 63.4,55.8 64.2,55.2 65.0,54.8 65.7,54.2 66.3,53.8 67.0,53.0 67.5,52.5 68.1,51.8 68.7,51.0 69.1,50.2 69.6,49.5 70.0,48.6 70.3,47.8 70.6,46.8 70.9,45.8 71.1,44.8 71.5,43.9 72.4,44.2 73.0,45.0 73.5,45.5 74.2,46.2 74.5,46.8 74.1,47.8 73.8,48.8 73.6,49.8 73.4,50.8 73.3,52.0 73.3,53.2 73.4,54.5 73.6,55.5 73.9,56.5 74.2,57.5 74.5,58.3 74.9,59.2 75.4,60.0 75.8,60.8 76.4,61.5 77.0,62.2 77.5,62.8 78.2,63.5 78.8,64.0 79.5,64.7 80.2,65.2 80.8,65.8 81.4,66.5 82.0,67.2 82.5,67.9 83.0,68.6 83.4,69.5 83.8,70.2 84.2,71.2 84.4,72.2 84.7,73.2 84.9,74.2 85.0,75.4 85.1,76.5 85.3,77.5 85.5,78.6 85.8,79.5 86.1,80.5 86.3,81.5 86.0,82.3 85.7,83.2 85.4,84.2 85.2,85.2 85.1,86.5 85.0,87.8 84.9,88.8 84.8,90.0 84.7,91.0 84.6,92.2 84.5,93.2 84.3,94.5 84.2,95.5 84.1,96.8 83.9,97.8 83.8,99.0 83.7,100.0 83.6,101.2 83.4,102.2 83.3,103.5 83.2,104.5 83.1,105.8 82.9,106.8 82.8,108.0 82.7,109.0 82.6,110.2 82.5,111.3 82.4,112.5 82.3,113.8 82.2,114.8 82.1,116.0 82.0,117.0 81.8,118.2 81.8,119.5 81.7,120.5 81.6,121.8 81.5,122.8 81.4,124.0 81.3,125.2 81.2,126.2 81.1,127.5 81.0,128.8 80.9,129.8 80.8,131.0 80.7,132.0 80.6,133.2 80.5,134.5 80.4,135.5 80.3,136.8 80.2,137.8 80.1,139.0 79.9,140.0 79.8,141.2 79.7,142.2 79.6,143.5 79.4,144.5 79.3,145.8 79.2,146.8 79.0,148.0 78.9,149.0 78.7,150.0 78.6,151.2 78.4,152.2 78.2,153.3 78.1,154.5 77.9,155.5 77.7,156.5 77.5,157.8 77.4,158.8 77.2,159.8 77.0,160.8 76.8,162.0 76.6,163.0 76.4,164.0 76.2,165.0 76.0,166.0 75.8,167.1 75.6,168.2 75.4,169.2 75.2,170.2 75.0,171.2 74.8,172.3 74.5,173.5 74.3,174.5 74.1,175.5 73.9,176.5 73.7,177.5 73.5,178.6 73.3,179.8 73.1,180.8 72.9,181.8 72.7,182.8 72.5,183.8 72.2,184.8 72.1,186.0 71.9,187.0 71.7,188.0 71.5,189.1 71.3,190.2 71.1,191.2 70.9,192.2 70.8,193.5 70.6,194.5 70.4,195.5 70.2,196.6 70.1,197.8 69.9,198.8 69.8,200.0 69.7,201.0 69.5,202.2 69.4,203.2 69.3,204.5 69.1,205.5 69.1,206.8 68.9,207.8 68.8,209.0 68.8,210.1 68.6,211.2 68.5,212.5 68.5,213.8 68.5,214.8 68.4,216.0 68.3,217.2 68.3,218.5 68.3,219.8 68.3,221.0 68.3,222.2 68.3,223.5 68.3,224.8 68.3,226.0 68.3,227.2 68.3,228.5 68.3,229.8 68.3,231.0 68.3,232.2 68.5,233.5 68.5,234.5 68.5,235.8 68.5,237.0 68.5,238.2 68.5,239.5 68.5,240.8 68.5,242.0 68.4,243.0 68.3,244.2 68.3,245.5 68.3,246.8 68.2,247.8 68.1,249.0 68.0,250.1 67.9,251.2 67.8,252.3 67.6,253.5 67.4,254.5 67.2,255.6 67.0,256.8 66.8,257.8 66.6,258.8 66.4,259.8 66.1,260.8 65.8,261.8 65.5,262.5 65.2,263.5 64.8,264.5 64.5,265.3 64.1,266.2 63.8,267.1 63.3,268.0 62.9,268.8 62.5,269.6 62.0,270.4 61.5,271.2 61.0,272.0 60.5,272.8 60.0,273.4 59.5,274.1 59.0,274.8 58.2,275.5 57.8,276.1 57.0,276.7 56.4,277.2 55.8,277.8 55.0,278.3 54.2,278.8 53.4,279.2 52.5,279.7 51.7,280.0 50.8,280.3 49.8,280.7 48.8,280.9 47.8,281.1 46.5,281.2 45.5,281.4 Z"],[5,"M45.0,278.0 43.8,278.0 42.8,277.9 41.8,277.7 40.5,277.5 39.6,277.2 38.8,277.0 37.8,276.5 37.0,276.1 36.2,275.6 35.5,275.1 34.8,274.5 34.2,273.9 33.7,273.2 33.1,272.5 32.6,271.8 32.1,271.0 31.7,270.2 31.2,269.5 30.8,268.5 30.5,267.8 30.1,266.8 29.8,265.8 29.5,264.8 29.3,263.8 29.1,262.8 29.0,261.8 28.9,260.5 28.9,259.2 28.9,258.0 29.0,256.8 29.1,255.8 29.2,254.5 29.4,253.5 29.6,252.5 29.8,251.5 30.0,250.4 30.2,249.3 30.5,248.2 30.7,247.2 31.0,246.2 31.2,245.2 31.5,244.2 31.7,243.2 32.0,242.4 32.2,241.4 32.5,240.4 32.8,239.4 33.0,238.5 33.3,237.5 33.5,236.5 33.8,235.5 34.0,234.4 34.2,233.4 34.5,232.3 34.7,231.2 34.9,230.2 35.1,229.2 35.3,228.2 35.5,227.0 35.7,226.0 35.8,225.0 36.0,223.8 36.1,222.8 36.2,221.5 36.3,220.5 36.4,219.2 36.4,218.0 36.4,216.8 36.4,215.5 36.4,214.2 36.4,213.0 36.3,211.8 36.2,210.6 36.1,209.5 36.0,208.4 35.8,207.2 35.7,206.2 35.5,205.0 35.3,204.0 35.2,203.0 34.9,202.0 34.7,201.0 34.5,200.0 34.2,199.0 34.0,198.0 33.7,197.0 33.4,196.0 33.1,195.0 32.8,194.0 32.5,193.0 32.2,192.2 31.9,191.2 31.6,190.2 31.2,189.3 30.9,188.5 30.6,187.5 30.2,186.5 29.9,185.8 29.6,184.8 29.2,183.9 28.9,183.0 28.5,182.0 28.2,181.2 27.8,180.2 27.5,179.5 27.1,178.5 26.8,177.6 26.4,176.8 26.0,175.8 25.7,175.0 25.3,174.0 25.0,173.2 24.6,172.2 24.2,171.4 23.9,170.5 23.5,169.5 23.2,168.8 22.9,167.8 22.5,166.8 22.2,166.0 21.9,165.0 21.6,164.0 21.3,163.0 21.0,162.0 20.8,161.0 20.5,160.1 20.2,159.1 20.0,158.0 19.8,157.0 19.6,156.0 19.4,155.0 19.2,154.0 19.1,152.8 18.9,151.8 18.8,150.5 18.7,149.5 18.6,148.2 18.5,147.2 18.4,146.0 18.3,144.8 18.2,143.8 18.1,142.5 18.1,141.2 18.1,140.0 18.1,138.8 18.1,137.5 18.1,136.2 18.1,135.0 18.1,133.8 18.1,132.5 18.1,131.2 18.1,130.0 18.1,128.8 18.2,127.6 18.3,126.5 18.4,125.2 18.4,124.0 18.5,122.8 18.6,121.8 18.6,120.5 18.6,119.2 18.7,118.0 18.8,117.0 18.9,115.8 18.9,114.5 18.9,113.2 19.0,112.2 19.1,111.0 19.1,109.8 19.1,108.5 19.3,107.5 19.3,106.2 19.4,105.0 19.4,103.8 19.5,102.8 19.6,101.5 19.6,100.2 19.8,99.2 19.8,98.0 20.0,96.8 20.1,95.8 20.2,94.5 20.3,93.5 20.5,92.2 20.6,91.2 20.8,90.0 20.9,89.0 21.1,88.0 21.3,87.0 21.5,86.0 21.8,85.0 22.0,84.0 22.3,83.0 22.7,82.0 23.0,81.0 23.3,80.2 23.7,79.2 24.0,78.5 24.5,77.7 25.0,76.8 25.5,76.0 26.0,75.2 26.5,74.6 27.0,74.0 27.6,73.2 28.2,72.6 28.8,72.0 29.5,71.3 30.1,70.8 30.8,70.2 31.5,69.6 32.2,69.0 33.0,68.5 33.7,68.0 34.5,67.5 35.2,67.0 36.0,66.6 36.8,66.2 37.5,65.7 38.5,65.2 39.2,64.9 40.2,64.5 41.0,64.1 42.0,63.8 42.8,63.5 43.8,63.2 44.8,62.8 45.8,62.5 46.8,62.3 47.8,62.0 48.8,61.8 49.8,61.6 50.8,61.5 52.0,61.3 53.0,61.1 54.2,61.1 55.2,61.0 56.5,60.9 57.8,60.8 58.8,60.7 60.0,60.5 61.0,60.3 62.0,60.0 62.8,59.7 63.8,59.3 64.5,59.0 65.4,58.5 66.2,58.0 67.0,57.5 67.7,57.0 68.3,56.5 69.0,55.8 69.6,55.2 70.1,55.2 70.3,56.2 70.5,57.2 70.8,58.2 71.2,59.2 71.5,60.0 72.0,61.0 72.4,61.8 72.9,62.5 73.4,63.2 74.0,64.0 74.5,64.6 75.2,65.2 75.8,65.8 76.4,66.5 77.0,67.0 77.8,67.6 78.4,68.2 79.0,68.9 79.5,69.5 80.0,70.2 80.5,71.2 80.8,72.0 81.1,73.0 81.3,74.0 81.5,75.0 81.7,76.2 81.8,77.2 82.0,78.5 82.2,79.5 82.5,80.5 82.8,81.2 82.5,82.0 82.2,83.0 82.0,84.0 81.8,85.2 81.7,86.2 81.7,87.5 81.5,88.8 81.4,89.8 81.3,91.0 81.2,92.0 81.0,93.2 80.9,94.2 80.8,95.5 80.7,96.5 80.5,97.8 80.4,98.8 80.3,100.0 80.2,101.0 80.0,102.1 79.9,103.2 79.8,104.4 79.7,105.5 79.5,106.6 79.4,107.8 79.3,109.0 79.2,110.0 79.1,111.2 79.0,112.2 78.9,113.5 78.8,114.6 78.7,115.8 78.5,117.0 78.4,118.0 78.4,119.2 78.2,120.4 78.2,121.5 78.1,122.8 78.0,123.8 77.9,125.0 77.8,126.2 77.7,127.2 77.6,128.5 77.5,129.5 77.4,130.8 77.3,132.0 77.2,133.0 77.1,134.2 77.0,135.2 76.9,136.5 76.8,137.6 76.7,138.8 76.5,140.0 76.4,141.0 76.3,142.2 76.2,143.2 76.0,144.5 75.9,145.5 75.8,146.6 75.6,147.8 75.5,148.8 75.3,150.0 75.2,151.0 75.0,152.1 74.8,153.2 74.7,154.2 74.5,155.2 74.3,156.5 74.1,157.5 73.9,158.5 73.7,159.5 73.5,160.8 73.3,161.8 73.2,162.8 72.9,163.8 72.7,164.8 72.5,166.0 72.3,167.0 72.2,168.0 71.9,169.0 71.7,170.0 71.5,171.2 71.3,172.2 71.1,173.2 70.9,174.2 70.7,175.2 70.5,176.2 70.2,177.5 70.0,178.5 69.8,179.5 69.7,180.5 69.4,181.5 69.2,182.5 69.0,183.7 68.8,184.8 68.7,185.8 68.4,186.8 68.2,188.0 68.1,189.0 67.9,190.0 67.7,191.0 67.5,192.2 67.4,193.2 67.2,194.2 67.0,195.5 66.8,196.5 66.7,197.5 66.5,198.8 66.4,199.8 66.2,200.9 66.1,202.0 66.0,203.0 65.9,204.2 65.7,205.2 65.7,206.5 65.5,207.6 65.4,208.8 65.3,210.0 65.2,211.0 65.2,212.2 65.2,213.5 65.1,214.8 65.0,215.8 64.9,217.0 64.9,218.2 64.9,219.5 64.9,220.8 64.9,222.0 64.9,223.2 64.9,224.5 64.9,225.8 64.9,227.0 64.9,228.2 64.9,229.5 64.9,230.8 64.9,232.0 65.0,233.1 65.1,234.2 65.2,235.5 65.2,236.8 65.2,238.0 65.2,239.2 65.2,240.5 65.1,241.8 65.0,242.9 64.9,244.0 64.9,245.2 64.9,246.5 64.8,247.8 64.7,248.8 64.6,250.0 64.5,251.0 64.3,252.2 64.2,253.2 64.0,254.5 63.8,255.5 63.6,256.5 63.4,257.5 63.2,258.5 62.9,259.5 62.6,260.5 62.3,261.5 62.0,262.3 61.7,263.2 61.3,264.2 61.0,265.0 60.5,266.0 60.1,266.8 59.8,267.5 59.2,268.4 58.8,269.2 58.3,270.0 57.8,270.8 57.2,271.4 56.8,272.1 56.2,272.8 55.5,273.5 54.9,274.0 54.2,274.6 53.5,275.2 52.8,275.7 52.0,276.1 51.2,276.5 50.2,276.9 49.3,277.2 48.2,277.5 47.2,277.7 46.2,277.8 45.2,278.0 Z"],[6,"M45.2,274.5 44.0,274.6 43.0,274.5 41.8,274.3 40.8,274.0 39.9,273.8 39.0,273.3 38.2,272.9 37.5,272.3 36.9,271.8 36.3,271.0 35.8,270.3 35.2,269.6 34.8,268.8 34.3,268.0 34.0,267.2 33.6,266.2 33.2,265.5 33.0,264.5 32.7,263.5 32.5,262.5 32.4,261.2 32.2,260.0 32.2,258.8 32.3,257.5 32.4,256.2 32.6,255.2 32.8,254.1 33.0,253.0 33.1,252.0 33.3,251.0 33.6,250.0 33.8,249.0 34.0,248.0 34.3,247.0 34.5,246.0 34.8,245.0 35.1,244.0 35.3,243.0 35.6,242.0 35.8,241.0 36.1,240.0 36.4,239.0 36.7,238.0 36.9,237.0 37.1,236.0 37.3,235.0 37.6,234.0 37.8,233.0 38.0,232.0 38.2,230.9 38.5,229.8 38.7,228.8 38.8,227.8 39.0,226.8 39.2,225.5 39.3,224.5 39.4,223.2 39.6,222.2 39.7,221.0 39.7,219.8 39.8,218.5 39.8,217.2 39.8,216.0 39.8,214.8 39.8,213.5 39.7,212.2 39.7,211.0 39.6,209.8 39.4,208.8 39.3,207.5 39.2,206.5 39.0,205.2 38.8,204.2 38.7,203.2 38.5,202.2 38.2,201.2 38.0,200.1 37.8,199.1 37.5,198.1 37.2,197.1 37.0,196.1 36.7,195.2 36.4,194.2 36.1,193.2 35.8,192.2 35.5,191.3 35.2,190.5 34.9,189.5 34.6,188.5 34.2,187.6 33.9,186.8 33.6,185.8 33.2,184.9 32.9,184.0 32.6,183.0 32.2,182.2 31.9,181.2 31.5,180.4 31.1,179.5 30.8,178.5 30.5,177.8 30.1,176.8 29.7,176.0 29.4,175.0 29.0,174.1 28.6,173.2 28.2,172.3 28.0,171.5 27.6,170.5 27.2,169.8 26.9,168.8 26.5,167.8 26.2,167.0 25.9,166.0 25.5,165.0 25.2,164.2 24.9,163.2 24.6,162.2 24.3,161.2 24.1,160.2 23.8,159.2 23.5,158.2 23.3,157.2 23.1,156.2 22.9,155.2 22.8,154.2 22.5,153.0 22.4,152.0 22.2,151.0 22.1,149.8 22.0,148.7 21.9,147.5 21.8,146.2 21.7,145.0 21.6,143.8 21.5,142.5 21.5,141.2 21.5,140.0 21.5,138.8 21.5,137.5 21.5,136.2 21.5,135.0 21.5,133.8 21.5,132.5 21.5,131.2 21.5,130.0 21.5,128.8 21.7,127.5 21.7,126.2 21.8,125.0 21.8,123.8 21.9,122.5 22.0,121.2 22.0,120.0 22.0,118.8 22.2,117.5 22.2,116.2 22.2,115.0 22.3,113.8 22.4,112.5 22.5,111.2 22.5,110.0 22.5,108.8 22.7,107.5 22.7,106.2 22.8,105.0 22.9,103.8 23.0,102.5 23.0,101.2 23.1,100.0 23.2,98.8 23.3,97.8 23.4,96.5 23.5,95.3 23.6,94.2 23.8,93.2 23.9,92.0 24.0,91.0 24.2,89.8 24.4,88.8 24.6,87.8 24.8,86.8 25.1,85.8 25.3,84.8 25.7,83.8 26.0,82.8 26.2,82.0 26.7,81.0 27.0,80.2 27.5,79.3 27.9,78.5 28.4,77.8 28.9,77.0 29.5,76.3 30.0,75.7 30.6,75.0 31.2,74.3 31.9,73.8 32.5,73.2 33.2,72.6 34.0,72.0 34.6,71.5 35.3,71.0 36.1,70.5 36.9,70.0 37.8,69.5 38.5,69.1 39.2,68.7 40.1,68.2 41.0,67.9 41.8,67.5 42.8,67.1 43.7,66.8 44.5,66.5 45.5,66.2 46.5,65.8 47.5,65.6 48.5,65.3 49.5,65.1 50.5,64.9 51.8,64.8 52.8,64.6 53.8,64.5 55.0,64.4 56.2,64.3 57.5,64.2 58.8,64.1 59.8,64.0 61.0,63.8 62.0,63.5 63.0,63.2 63.8,63.0 64.8,62.6 65.6,62.2 66.5,61.8 67.2,61.4 68.0,60.9 68.5,61.6 69.0,62.5 69.4,63.2 69.8,64.0 70.3,64.8 70.9,65.5 71.5,66.2 72.0,66.9 72.6,67.5 73.2,68.2 73.9,68.8 74.5,69.3 75.2,70.0 75.8,70.5 76.5,71.2 77.0,71.9 77.4,72.8 77.8,73.6 78.0,74.6 78.2,75.8 78.3,76.8 78.5,78.0 78.6,79.0 78.8,80.0 79.1,81.0 79.0,82.0 78.7,83.0 78.5,84.2 78.4,85.2 78.3,86.5 78.2,87.5 78.1,88.8 78.0,90.0 77.9,91.0 77.8,92.2 77.6,93.2 77.5,94.5 77.4,95.5 77.2,96.5 77.1,97.8 77.0,98.8 76.8,100.0 76.7,101.0 76.6,102.2 76.5,103.2 76.3,104.5 76.2,105.5 76.1,106.8 76.0,107.8 75.8,109.0 75.8,110.2 75.6,111.2 75.5,112.5 75.5,113.5 75.3,114.8 75.2,116.0 75.1,117.0 75.0,118.2 75.0,119.2 74.8,120.5 74.8,121.8 74.6,122.8 74.5,124.0 74.5,125.0 74.3,126.2 74.3,127.5 74.2,128.5 74.1,129.8 74.0,130.9 73.9,132.0 73.8,133.2 73.7,134.2 73.6,135.5 73.5,136.5 73.3,137.8 73.2,138.8 73.1,140.0 73.0,141.0 72.8,142.2 72.7,143.2 72.6,144.5 72.5,145.5 72.3,146.8 72.2,147.8 72.0,149.0 71.9,150.0 71.7,151.0 71.5,152.2 71.4,153.2 71.2,154.2 71.0,155.5 70.8,156.5 70.7,157.5 70.5,158.5 70.2,159.7 70.1,160.8 69.9,161.8 69.7,162.8 69.5,163.8 69.2,164.9 69.0,166.0 68.9,167.0 68.7,168.0 68.5,169.0 68.2,170.1 68.0,171.2 67.8,172.2 67.6,173.2 67.4,174.2 67.2,175.2 67.0,176.4 66.8,177.5 66.6,178.5 66.4,179.5 66.2,180.5 66.0,181.5 65.8,182.6 65.5,183.8 65.4,184.8 65.2,185.8 65.0,186.8 64.8,188.0 64.6,189.0 64.4,190.0 64.2,191.0 64.1,192.2 63.9,193.2 63.7,194.2 63.5,195.5 63.4,196.5 63.2,197.5 63.1,198.8 63.0,199.8 62.8,201.0 62.7,202.0 62.6,203.2 62.4,204.2 62.3,205.5 62.2,206.5 62.1,207.8 62.0,209.0 61.9,210.0 61.8,211.2 61.8,212.5 61.8,213.8 61.6,215.0 61.5,216.2 61.5,217.5 61.5,218.8 61.5,220.0 61.5,221.2 61.5,222.5 61.5,223.8 61.5,225.0 61.5,226.2 61.5,227.5 61.5,228.8 61.5,230.0 61.5,231.2 61.5,232.5 61.6,233.8 61.8,235.0 61.8,236.2 61.8,237.5 61.8,238.8 61.8,240.0 61.8,241.2 61.6,242.5 61.5,243.8 61.5,245.0 61.5,246.2 61.4,247.5 61.3,248.8 61.2,249.8 61.1,251.0 60.9,252.0 60.8,253.2 60.6,254.2 60.4,255.2 60.2,256.2 60.0,257.2 59.7,258.2 59.4,259.2 59.1,260.2 58.8,261.2 58.5,262.0 58.1,263.0 57.8,263.9 57.3,264.8 57.0,265.5 56.5,266.4 56.0,267.2 55.5,268.0 55.0,268.8 54.5,269.4 54.0,270.1 53.4,270.8 52.8,271.4 52.1,272.0 51.4,272.5 50.6,273.0 49.8,273.4 49.0,273.8 48.0,274.1 47.0,274.3 45.8,274.5 Z"],[7,"M46.0,271.0 44.8,271.2 43.5,271.1 42.5,271.0 41.5,270.7 40.5,270.3 39.8,269.8 39.2,269.2 38.6,268.5 38.1,267.8 37.6,267.0 37.2,266.2 36.8,265.2 36.5,264.5 36.2,263.5 36.0,262.5 35.8,261.2 35.7,260.2 35.6,259.0 35.7,257.8 35.8,256.8 36.0,255.5 36.1,254.5 36.3,253.5 36.5,252.4 36.8,251.4 37.0,250.2 37.2,249.2 37.5,248.2 37.7,247.2 38.0,246.2 38.2,245.2 38.5,244.4 38.8,243.4 39.0,242.4 39.2,241.4 39.5,240.5 39.8,239.5 40.0,238.5 40.3,237.5 40.5,236.4 40.8,235.4 41.0,234.4 41.2,233.2 41.4,232.2 41.6,231.2 41.8,230.2 42.0,229.2 42.2,228.0 42.4,227.0 42.5,226.0 42.7,224.8 42.8,223.8 43.0,222.5 43.1,221.5 43.1,220.2 43.1,219.0 43.1,217.8 43.1,216.5 43.1,215.2 43.1,214.0 43.1,212.8 43.1,211.5 43.0,210.2 42.9,209.2 42.8,208.0 42.7,207.0 42.5,205.8 42.4,204.8 42.2,203.8 42.0,202.6 41.8,201.5 41.5,200.5 41.3,199.5 41.1,198.5 40.9,197.5 40.6,196.5 40.4,195.5 40.1,194.5 39.8,193.5 39.5,192.6 39.2,191.8 38.9,190.8 38.6,189.8 38.2,188.8 38.0,188.0 37.7,187.0 37.3,186.0 37.0,185.2 36.7,184.2 36.3,183.2 36.0,182.5 35.6,181.5 35.2,180.6 34.9,179.8 34.5,178.8 34.2,178.0 33.8,177.0 33.5,176.2 33.1,175.2 32.8,174.3 32.4,173.5 32.0,172.5 31.7,171.8 31.3,170.8 31.0,170.0 30.6,169.0 30.2,168.0 30.0,167.2 29.6,166.2 29.2,165.3 29.0,164.5 28.6,163.5 28.2,162.5 28.0,161.6 27.7,160.8 27.5,159.8 27.2,158.8 26.9,157.8 26.7,156.8 26.5,155.8 26.2,154.6 26.1,153.5 25.9,152.5 25.7,151.5 25.6,150.2 25.5,149.2 25.4,148.0 25.2,146.8 25.1,145.8 25.1,144.5 25.0,143.3 24.9,142.2 24.9,141.0 24.9,139.8 24.9,138.5 24.9,137.2 24.9,136.0 24.9,134.8 24.9,133.5 24.9,132.2 24.9,131.0 24.9,129.8 25.0,128.5 25.1,127.5 25.1,126.2 25.1,125.0 25.2,123.8 25.3,122.8 25.4,121.5 25.4,120.2 25.4,119.0 25.5,118.0 25.6,116.8 25.6,115.5 25.7,114.2 25.8,113.2 25.9,112.0 25.9,110.8 25.9,109.5 26.0,108.5 26.1,107.2 26.1,106.0 26.2,104.8 26.3,103.8 26.4,102.5 26.4,101.2 26.5,100.2 26.6,99.0 26.7,97.8 26.8,96.8 26.9,95.5 27.0,94.5 27.2,93.2 27.3,92.2 27.5,91.0 27.7,90.0 27.8,89.0 28.0,88.0 28.3,87.0 28.5,86.0 28.8,85.0 29.2,84.0 29.5,83.0 29.8,82.2 30.2,81.3 30.7,80.5 31.2,79.8 31.7,79.0 32.2,78.3 32.8,77.7 33.4,77.0 34.0,76.4 34.7,75.8 35.3,75.2 36.0,74.7 36.8,74.2 37.5,73.6 38.2,73.2 39.0,72.7 39.8,72.2 40.7,71.8 41.5,71.3 42.3,71.0 43.2,70.6 44.0,70.2 45.0,69.9 46.0,69.6 47.0,69.2 47.9,69.0 48.9,68.8 49.9,68.5 51.0,68.3 52.0,68.2 53.0,68.0 54.2,67.9 55.5,67.8 56.5,67.7 57.8,67.6 59.0,67.5 60.0,67.4 61.0,67.2 62.2,67.0 63.1,66.8 64.0,66.5 65.0,66.2 66.0,65.8 66.8,65.5 67.2,66.2 67.8,67.0 68.2,67.7 68.8,68.3 69.4,69.0 70.0,69.7 70.5,70.2 71.2,71.0 71.8,71.5 72.5,72.1 73.2,72.7 73.8,73.2 74.3,74.0 74.6,75.0 74.8,76.0 75.0,77.2 75.1,78.2 75.2,79.4 75.5,80.5 75.6,81.5 75.4,82.5 75.2,83.5 75.0,84.8 74.9,85.8 74.9,87.0 74.8,88.0 74.6,89.2 74.5,90.5 74.4,91.5 74.3,92.8 74.2,93.8 74.0,95.0 73.9,96.0 73.8,97.0 73.6,98.2 73.5,99.3 73.3,100.5 73.2,101.5 73.1,102.8 73.0,103.8 72.8,105.0 72.7,106.0 72.6,107.2 72.5,108.3 72.4,109.5 72.3,110.8 72.2,111.8 72.1,113.0 72.0,114.0 71.9,115.2 71.8,116.5 71.7,117.5 71.6,118.8 71.5,119.8 71.4,121.0 71.3,122.2 71.2,123.2 71.1,124.5 71.0,125.5 70.9,126.8 70.8,128.0 70.7,129.0 70.6,130.2 70.5,131.5 70.4,132.5 70.3,133.8 70.2,134.8 70.1,136.0 70.0,137.0 69.9,138.2 69.8,139.3 69.6,140.5 69.5,141.5 69.4,142.8 69.2,143.8 69.1,145.0 69.0,146.0 68.8,147.2 68.7,148.2 68.5,149.5 68.3,150.5 68.2,151.5 68.0,152.8 67.8,153.8 67.7,154.8 67.5,155.8 67.3,157.0 67.1,158.0 66.9,159.0 66.8,160.1 66.5,161.2 66.3,162.2 66.1,163.2 65.9,164.2 65.7,165.2 65.5,166.5 65.3,167.5 65.1,168.5 64.9,169.5 64.7,170.5 64.5,171.6 64.3,172.8 64.1,173.8 63.9,174.8 63.7,175.8 63.5,176.8 63.2,177.8 63.0,179.0 62.8,180.0 62.6,181.0 62.4,182.0 62.2,183.0 62.0,184.2 61.8,185.2 61.6,186.2 61.5,187.2 61.3,188.5 61.1,189.5 60.9,190.5 60.8,191.5 60.6,192.8 60.4,193.8 60.2,194.8 60.0,196.0 59.9,197.0 59.8,198.0 59.6,199.2 59.5,200.2 59.3,201.5 59.2,202.5 59.1,203.8 59.0,204.8 58.8,206.0 58.7,207.0 58.6,208.2 58.5,209.5 58.4,210.5 58.4,211.8 58.4,213.0 58.3,214.2 58.2,215.2 58.1,216.5 58.1,217.8 58.1,219.0 58.1,220.2 58.1,221.5 58.1,222.8 58.1,224.0 58.1,225.2 58.1,226.5 58.1,227.8 58.1,229.0 58.1,230.2 58.1,231.5 58.1,232.8 58.2,234.0 58.4,235.0 58.4,236.2 58.4,237.5 58.4,238.8 58.4,240.0 58.3,241.2 58.2,242.2 58.1,243.5 58.1,244.8 58.1,246.0 58.0,247.0 57.9,248.2 57.8,249.5 57.7,250.5 57.5,251.8 57.4,252.8 57.2,253.8 57.0,254.8 56.8,256.0 56.5,257.0 56.3,258.0 56.0,258.8 55.7,259.8 55.3,260.8 55.0,261.6 54.6,262.5 54.2,263.3 53.8,264.2 53.4,265.0 52.9,265.8 52.4,266.5 51.9,267.2 51.3,268.0 50.8,268.6 50.1,269.2 49.4,269.8 48.6,270.2 47.8,270.6 46.8,270.9"],[8,"M44.5,267.8 43.5,267.7 42.5,267.5 41.8,266.9 41.2,266.2 40.7,265.5 40.2,264.7 39.9,263.8 39.5,262.8 39.3,261.8 39.1,260.8 39.0,259.5 39.1,258.2 39.2,257.0 39.3,256.0 39.5,255.0 39.7,253.8 39.9,252.8 40.2,251.8 40.4,250.8 40.6,249.8 40.9,248.8 41.1,247.8 41.4,246.8 41.6,245.8 41.9,244.8 42.2,243.8 42.4,242.8 42.7,241.8 43.0,240.8 43.2,239.8 43.5,238.8 43.7,237.8 43.9,236.8 44.2,235.8 44.4,234.8 44.6,233.8 44.8,232.8 45.0,231.8 45.2,230.6 45.4,229.5 45.6,228.5 45.8,227.5 45.9,226.2 46.1,225.2 46.2,224.0 46.3,223.0 46.5,221.8 46.5,220.8 46.5,219.5 46.5,218.2 46.5,217.0 46.5,215.8 46.5,214.5 46.5,213.2 46.5,212.0 46.5,210.8 46.4,209.8 46.3,208.5 46.2,207.5 46.0,206.2 45.9,205.2 45.7,204.2 45.5,203.0 45.4,202.0 45.2,201.0 44.9,200.0 44.7,199.0 44.5,198.0 44.2,197.0 44.0,196.0 43.7,195.0 43.5,194.0 43.2,193.0 42.9,192.0 42.6,191.0 42.2,190.0 42.0,189.2 41.7,188.2 41.3,187.2 41.0,186.3 40.7,185.5 40.3,184.5 40.0,183.5 39.7,182.8 39.3,181.8 39.0,180.8 38.7,180.0 38.3,179.0 38.0,178.2 37.6,177.2 37.2,176.4 36.9,175.5 36.5,174.6 36.2,173.8 35.8,172.8 35.5,172.0 35.1,171.0 34.8,170.2 34.4,169.2 34.0,168.3 33.7,167.5 33.3,166.5 33.0,165.7 32.7,164.8 32.3,163.8 32.0,162.9 31.7,162.0 31.4,161.0 31.1,160.0 30.8,159.0 30.5,158.0 30.2,157.1 30.0,156.0 29.8,155.0 29.6,154.0 29.4,153.0 29.2,151.9 29.1,150.8 29.0,149.8 28.8,148.5 28.7,147.5 28.6,146.2 28.5,145.0 28.5,144.0 28.4,142.8 28.3,141.5 28.3,140.2 28.3,139.0 28.3,137.8 28.3,136.5 28.3,135.2 28.3,134.0 28.3,132.8 28.3,131.5 28.3,130.2 28.4,129.0 28.5,127.8 28.5,126.8 28.5,125.5 28.6,124.2 28.7,123.0 28.8,122.0 28.8,120.8 28.8,119.5 28.9,118.2 29.0,117.2 29.0,116.0 29.0,114.8 29.2,113.5 29.2,112.4 29.3,111.2 29.3,110.0 29.4,108.8 29.5,107.5 29.5,106.5 29.5,105.2 29.7,104.0 29.8,102.9 29.8,101.8 29.9,100.5 30.0,99.2 30.1,98.2 30.2,97.0 30.3,96.0 30.4,94.8 30.6,93.8 30.7,92.5 30.9,91.5 31.0,90.5 31.2,89.3 31.5,88.2 31.7,87.2 32.0,86.2 32.2,85.5 32.6,84.5 33.0,83.5 33.3,82.8 33.8,82.0 34.3,81.2 34.8,80.5 35.5,79.8 36.0,79.2 36.8,78.5 37.4,78.0 38.0,77.5 38.8,76.9 39.5,76.4 40.2,75.9 41.0,75.5 41.8,75.0 42.8,74.5 43.5,74.2 44.5,73.8 45.2,73.4 46.2,73.1 47.2,72.8 48.0,72.5 49.0,72.2 50.0,72.0 51.1,71.8 52.2,71.6 53.2,71.4 54.5,71.3 55.5,71.2 56.8,71.1 58.0,71.0 59.0,70.9 60.2,70.8 61.2,70.6 62.2,70.5 63.2,70.2 64.2,70.0 65.2,69.7 66.0,70.2 66.5,70.9 67.0,71.5 67.7,72.2 68.2,72.8 69.0,73.5 69.5,74.0 70.2,74.7 70.9,75.2 71.3,76.0 71.5,77.1 71.6,78.2 71.8,79.2 72.0,80.5 72.1,81.5 71.9,82.5 71.7,83.5 71.6,84.8 71.5,85.8 71.4,87.0 71.3,88.2 71.2,89.2 71.1,90.5 71.0,91.5 70.8,92.8 70.7,93.8 70.6,95.0 70.4,96.0 70.3,97.2 70.2,98.2 70.1,99.5 69.9,100.5 69.8,101.8 69.7,102.8 69.5,104.0 69.4,105.0 69.3,106.2 69.2,107.2 69.1,108.5 69.0,109.5 68.9,110.8 68.8,112.0 68.7,113.0 68.5,114.2 68.5,115.2 68.3,116.5 68.2,117.6 68.2,118.8 68.0,120.0 68.0,121.0 67.9,122.2 67.8,123.5 67.7,124.5 67.6,125.8 67.5,126.8 67.4,128.0 67.3,129.2 67.2,130.2 67.1,131.5 67.0,132.6 66.9,133.8 66.8,135.0 66.7,136.0 66.5,137.2 66.4,138.2 66.3,139.5 66.2,140.5 66.1,141.8 65.9,142.8 65.8,144.0 65.7,145.0 65.5,146.2 65.4,147.2 65.2,148.2 65.1,149.5 64.9,150.5 64.8,151.6 64.6,152.8 64.4,153.8 64.2,154.8 64.0,156.0 63.8,157.0 63.6,158.0 63.5,159.0 63.2,160.2 63.0,161.2 62.8,162.2 62.6,163.2 62.4,164.2 62.2,165.4 62.0,166.5 61.8,167.5 61.6,168.5 61.4,169.5 61.2,170.5 61.0,171.7 60.8,172.8 60.6,173.8 60.4,174.8 60.2,175.8 60.0,176.8 59.8,177.9 59.5,179.0 59.3,180.0 59.1,181.0 58.9,182.0 58.8,183.1 58.5,184.2 58.4,185.2 58.2,186.2 58.0,187.4 57.8,188.5 57.6,189.5 57.4,190.5 57.3,191.8 57.1,192.8 56.9,193.8 56.8,194.9 56.6,196.0 56.4,197.0 56.3,198.2 56.2,199.2 56.0,200.5 55.9,201.5 55.8,202.8 55.6,203.8 55.5,205.0 55.4,206.0 55.3,207.2 55.2,208.2 55.1,209.5 55.0,210.8 55.0,211.8 55.0,213.0 54.9,214.2 54.8,215.5 54.7,216.5 54.7,217.8 54.7,219.0 54.7,220.2 54.7,221.5 54.7,222.8 54.7,224.0 54.7,225.2 54.7,226.5 54.7,227.8 54.7,229.0 54.7,230.2 54.7,231.5 54.7,232.8 54.8,233.8 54.9,235.0 55.0,236.2 55.0,237.5 55.0,238.8 55.0,240.0 54.9,241.2 54.8,242.5 54.7,243.5 54.7,244.8 54.7,246.0 54.6,247.2 54.5,248.2 54.4,249.5 54.2,250.6 54.1,251.8 53.9,252.8 53.7,253.8 53.5,254.9 53.3,256.0 53.0,257.0 52.8,257.8 52.4,258.8 52.1,259.8 51.8,260.6 51.4,261.5 51.0,262.2 50.5,263.2 50.0,264.0 49.5,264.8 49.0,265.4 48.5,266.0 47.8,266.8 47.0,267.2 46.2,267.5 45.0,267.7 Z"],[9,"M45.0,264.3 43.9,264.2 43.5,263.5 43.0,262.5 42.8,261.6 42.5,260.5 42.4,259.5 42.5,258.3 42.6,257.2 42.8,256.1 43.0,255.0 43.1,254.0 43.4,253.0 43.6,252.0 43.8,251.0 44.0,250.0 44.3,249.0 44.5,248.0 44.8,247.0 45.1,246.0 45.4,245.0 45.6,244.0 45.9,243.0 46.1,242.0 46.4,241.0 46.7,240.0 46.9,239.0 47.1,238.0 47.4,237.0 47.6,236.0 47.8,235.0 48.0,234.0 48.2,232.9 48.5,231.8 48.7,230.8 48.8,229.8 49.0,228.8 49.2,227.5 49.3,226.5 49.5,225.3 49.6,224.2 49.8,223.1 49.9,222.0 49.9,220.8 49.9,219.5 49.9,218.2 49.9,217.0 49.9,215.8 49.9,214.5 49.9,213.2 49.9,212.0 49.9,210.8 49.8,209.5 49.7,208.5 49.6,207.2 49.4,206.2 49.3,205.0 49.1,204.0 49.0,203.0 48.8,201.8 48.6,200.8 48.4,199.8 48.1,198.8 47.9,197.8 47.7,196.8 47.4,195.8 47.2,194.8 46.9,193.8 46.6,192.8 46.3,191.8 46.0,190.8 45.8,189.8 45.5,189.0 45.2,188.0 44.8,187.0 44.5,186.0 44.2,185.2 43.9,184.2 43.5,183.3 43.2,182.5 42.9,181.5 42.5,180.5 42.2,179.8 41.8,178.8 41.5,177.9 41.1,177.0 40.8,176.0 40.4,175.2 40.0,174.2 39.7,173.5 39.3,172.5 39.0,171.6 38.6,170.8 38.2,169.8 37.9,169.0 37.5,168.0 37.2,167.2 36.8,166.2 36.5,165.3 36.2,164.5 35.8,163.5 35.5,162.6 35.2,161.8 34.8,160.8 34.5,159.8 34.2,158.8 34.0,157.9 33.7,157.0 33.5,156.0 33.2,154.9 33.0,153.8 32.8,152.8 32.7,151.8 32.5,150.7 32.4,149.5 32.2,148.4 32.1,147.2 32.0,146.0 31.9,145.0 31.9,143.8 31.8,142.5 31.7,141.5 31.7,140.2 31.7,139.0 31.7,137.8 31.7,136.5 31.7,135.2 31.7,134.0 31.7,132.8 31.7,131.5 31.7,130.2 31.8,129.2 31.9,128.0 31.9,126.8 31.9,125.5 32.0,124.2 32.1,123.2 32.2,122.0 32.2,120.8 32.2,119.5 32.3,118.5 32.4,117.2 32.4,116.0 32.4,114.8 32.6,113.8 32.7,112.5 32.7,111.2 32.7,110.0 32.8,109.0 32.9,107.8 32.9,106.5 32.9,105.2 33.1,104.2 33.2,103.0 33.2,101.8 33.3,100.8 33.4,99.5 33.5,98.2 33.6,97.2 33.7,96.0 33.8,95.0 34.0,93.8 34.1,92.8 34.3,91.8 34.5,90.5 34.7,89.5 34.9,88.5 35.2,87.5 35.5,86.5 35.8,85.7 36.2,84.8 36.5,84.0 37.0,83.2 37.6,82.5 38.2,81.8 38.8,81.2 39.5,80.6 40.2,80.0 41.0,79.5 41.8,79.0 42.5,78.5 43.2,78.1 44.0,77.7 45.0,77.2 45.8,76.9 46.7,76.5 47.5,76.2 48.5,75.9 49.5,75.6 50.5,75.4 51.5,75.1 52.5,74.9 53.8,74.8 54.8,74.7 56.0,74.6 57.0,74.4 58.2,74.4 59.5,74.3 60.5,74.2 61.8,74.0 62.8,73.8 63.8,73.6 64.5,73.8 65.0,74.3 65.7,75.0 66.2,75.6 66.9,76.2 67.5,76.8 68.1,77.5 68.2,78.6 68.4,79.8 68.6,80.8 68.5,82.0 68.4,83.0 68.2,84.0 68.1,85.2 68.1,86.5 68.0,87.5 67.9,88.8 67.7,89.8 67.6,91.0 67.5,92.0 67.4,93.2 67.2,94.2 67.1,95.5 67.0,96.5 66.8,97.8 66.7,98.8 66.6,100.0 66.4,101.0 66.3,102.2 66.2,103.2 66.1,104.5 65.9,105.5 65.8,106.8 65.7,107.8 65.6,109.0 65.5,110.2 65.4,111.2 65.3,112.5 65.2,113.5 65.1,114.8 65.0,115.8 64.9,117.0 64.8,118.2 64.7,119.2 64.6,120.5 64.5,121.7 64.4,122.8 64.3,124.0 64.2,125.0 64.1,126.2 64.0,127.5 63.9,128.5 63.8,129.8 63.7,130.8 63.6,132.0 63.5,133.2 63.4,134.2 63.3,135.5 63.2,136.5 63.1,137.8 63.0,138.8 62.8,140.0 62.7,141.0 62.6,142.2 62.5,143.2 62.3,144.5 62.2,145.5 62.0,146.8 61.9,147.8 61.7,148.8 61.6,150.0 61.4,151.0 61.2,152.0 61.0,153.2 60.9,154.2 60.7,155.2 60.5,156.4 60.3,157.5 60.1,158.5 59.9,159.5 59.7,160.5 59.5,161.6 59.3,162.8 59.1,163.8 58.9,164.8 58.7,165.8 58.5,166.9 58.3,168.0 58.1,169.0 57.9,170.0 57.7,171.0 57.5,172.0 57.2,173.1 57.0,174.2 56.8,175.2 56.6,176.2 56.4,177.2 56.2,178.2 56.0,179.4 55.8,180.5 55.6,181.5 55.4,182.5 55.2,183.5 55.0,184.7 54.8,185.8 54.7,186.8 54.5,187.8 54.2,188.9 54.1,190.0 53.9,191.0 53.8,192.2 53.6,193.2 53.4,194.2 53.2,195.4 53.1,196.5 53.0,197.5 52.8,198.8 52.7,199.8 52.5,201.0 52.4,202.0 52.3,203.2 52.2,204.2 52.1,205.5 51.9,206.5 51.8,207.8 51.8,208.9 51.6,210.0 51.6,211.2 51.6,212.5 51.5,213.7 51.4,214.8 51.3,216.0 51.3,217.2 51.3,218.5 51.3,219.8 51.3,221.0 51.3,222.2 51.3,223.5 51.3,224.8 51.3,226.0 51.3,227.2 51.3,228.5 51.3,229.8 51.3,231.0 51.3,232.2 51.4,233.5 51.5,234.8 51.6,235.8 51.6,237.0 51.6,238.2 51.6,239.5 51.6,240.8 51.4,241.8 51.3,243.0 51.3,244.2 51.3,245.5 51.2,246.5 51.1,247.8 51.0,248.9 50.9,250.0 50.8,251.2 50.6,252.2 50.4,253.2 50.2,254.2 50.0,255.2 49.7,256.2 49.3,257.2 49.0,258.2 48.7,259.0 48.3,260.0 47.9,260.8 47.5,261.6 47.0,262.4 46.5,263.1 46.0,263.8 45.1,264.2 Z"],[10,"M50.2,192.5 49.9,191.8 49.6,190.8 49.3,189.8 49.0,188.8 48.7,188.0 48.4,187.0 48.1,186.0 47.8,185.0 47.5,184.2 47.1,183.2 46.8,182.2 46.5,181.5 46.1,180.5 45.8,179.5 45.5,178.8 45.1,177.8 44.8,176.9 44.4,176.0 44.0,175.0 43.7,174.2 43.3,173.2 43.0,172.5 42.6,171.5 42.2,170.6 41.9,169.8 41.5,168.8 41.2,168.0 40.8,167.0 40.5,166.2 40.1,165.2 39.8,164.3 39.5,163.5 39.1,162.5 38.8,161.5 38.5,160.8 38.1,159.8 37.8,158.8 37.5,157.8 37.2,156.9 37.0,156.0 36.7,155.0 36.5,153.8 36.3,152.8 36.1,151.8 36.0,150.8 35.8,149.5 35.7,148.5 35.5,147.2 35.4,146.2 35.3,145.0 35.3,143.8 35.2,142.8 35.1,141.5 35.1,140.2 35.1,139.0 35.1,137.8 35.1,136.5 35.1,135.2 35.1,134.0 35.1,132.8 35.1,131.5 35.1,130.2 35.2,129.0 35.3,128.0 35.3,126.8 35.3,125.5 35.4,124.2 35.5,123.1 35.6,122.0 35.6,120.8 35.6,119.5 35.8,118.4 35.8,117.2 35.8,116.0 35.9,114.8 36.0,113.5 36.1,112.5 36.1,111.2 36.1,110.0 36.2,108.8 36.3,107.8 36.3,106.5 36.4,105.2 36.5,104.0 36.6,103.0 36.6,101.8 36.7,100.5 36.8,99.5 36.9,98.2 37.0,97.1 37.1,96.0 37.2,94.9 37.4,93.8 37.5,92.8 37.7,91.5 37.9,90.5 38.2,89.5 38.4,88.5 38.7,87.5 39.0,86.8 39.5,85.8 39.9,85.0 40.5,84.4 41.1,83.8 41.8,83.2 42.5,82.6 43.2,82.1 44.0,81.6 44.8,81.2 45.5,80.7 46.5,80.3 47.2,80.0 48.2,79.6 49.2,79.2 50.0,79.0 51.0,78.7 52.0,78.5 53.2,78.3 54.2,78.1 55.5,78.0 56.5,77.9 57.8,77.8 59.0,77.8 60.0,77.7 61.2,77.5 62.2,77.4 63.0,77.2 63.8,77.9 64.4,78.5 64.9,79.2 65.0,80.2 65.2,81.5 65.0,82.6 64.9,83.8 64.8,84.9 64.7,86.0 64.6,87.2 64.5,88.2 64.4,89.5 64.2,90.6 64.1,91.8 64.0,92.8 63.9,94.0 63.7,95.0 63.6,96.2 63.5,97.2 63.3,98.5 63.2,99.5 63.1,100.8 62.9,101.8 62.8,103.0 62.7,104.0 62.6,105.2 62.5,106.2 62.3,107.5 62.2,108.5 62.1,109.8 62.0,111.0 61.9,112.0 61.8,113.2 61.7,114.2 61.6,115.5 61.5,116.6 61.4,117.8 61.3,119.0 61.2,120.0 61.1,121.2 61.0,122.5 60.9,123.5 60.8,124.8 60.7,125.8 60.7,127.0 60.5,128.2 60.5,129.2 60.4,130.5 60.2,131.6 60.2,132.8 60.0,134.0 59.9,135.0 59.8,136.2 59.7,137.2 59.6,138.5 59.5,139.5 59.3,140.8 59.2,141.8 59.1,143.0 58.9,144.0 58.8,145.2 58.7,146.2 58.5,147.3 58.3,148.5 58.2,149.5 58.0,150.8 57.8,151.8 57.7,152.8 57.5,153.8 57.3,155.0 57.1,156.0 56.9,157.0 56.8,158.0 56.5,159.2 56.3,160.2 56.1,161.2 55.9,162.2 55.7,163.2 55.5,164.5 55.3,165.5 55.1,166.5 54.9,167.5 54.7,168.5 54.5,169.5 54.3,170.8 54.1,171.8 53.9,172.8 53.7,173.8 53.5,174.8 53.2,175.8 53.0,177.0 52.8,178.0 52.6,179.0 52.4,180.0 52.2,181.0 52.0,182.2 51.8,183.2 51.6,184.2 51.5,185.2 51.3,186.5 51.1,187.5 50.9,188.5 50.7,189.5 50.5,190.8 50.4,191.8"],[11,"M49.2,178.4 48.7,177.8 48.4,176.8 48.0,175.8 47.7,175.0 47.3,174.0 47.0,173.2 46.6,172.2 46.2,171.5 45.9,170.5 45.5,169.6 45.2,168.8 44.8,167.8 44.5,167.0 44.1,166.0 43.8,165.2 43.4,164.2 43.0,163.3 42.7,162.5 42.3,161.5 42.0,160.5 41.7,159.8 41.3,158.8 41.0,157.8 40.8,156.8 40.5,155.9 40.2,155.0 40.0,153.9 39.8,152.8 39.6,151.8 39.4,150.8 39.2,149.8 39.1,148.5 39.0,147.5 38.9,146.2 38.8,145.1 38.7,144.0 38.6,142.8 38.5,141.5 38.5,140.5 38.5,139.2 38.5,138.0 38.5,136.8 38.5,135.5 38.5,134.2 38.5,133.0 38.5,131.8 38.5,130.5 38.6,129.5 38.7,128.2 38.7,127.0 38.7,125.8 38.8,124.8 38.9,123.5 39.0,122.2 39.0,121.0 39.0,120.0 39.1,118.8 39.2,117.5 39.2,116.2 39.2,115.2 39.4,114.0 39.4,112.8 39.5,111.5 39.5,110.2 39.6,109.2 39.7,108.0 39.7,106.8 39.8,105.7 39.9,104.5 39.9,103.2 40.0,102.0 40.1,101.0 40.2,99.8 40.3,98.8 40.4,97.5 40.5,96.4 40.6,95.2 40.8,94.2 40.9,93.0 41.1,92.0 41.3,91.0 41.6,90.0 41.8,89.0 42.2,88.0 42.5,87.2 43.2,86.5 43.8,85.9 44.5,85.4 45.2,84.8 46.0,84.4 46.8,83.9 47.6,83.5 48.5,83.1 49.5,82.8 50.2,82.5 51.2,82.2 52.2,81.9 53.2,81.7 54.5,81.5 55.5,81.4 56.8,81.3 57.8,81.2 59.0,81.2 60.2,81.1 61.2,81.0 61.8,81.3 61.6,82.5 61.5,83.5 61.3,84.8 61.3,86.0 61.2,87.0 61.1,88.2 61.0,89.2 60.8,90.5 60.7,91.5 60.6,92.8 60.5,93.8 60.3,95.0 60.2,96.0 60.0,97.2 59.9,98.2 59.8,99.5 59.7,100.5 59.5,101.8 59.4,102.8 59.3,104.0 59.2,105.0 59.0,106.2 58.9,107.2 58.8,108.5 58.7,109.5 58.6,110.8 58.5,112.0 58.4,113.0 58.3,114.2 58.2,115.2 58.1,116.5 58.0,117.8 57.9,118.8 57.8,120.0 57.7,121.0 57.6,122.2 57.5,123.5 57.4,124.5 57.3,125.8 57.2,126.9 57.1,128.0 57.1,129.2 57.0,130.2 56.8,131.5 56.8,132.6 56.6,133.8 56.5,135.0 56.4,136.0 56.3,137.2 56.2,138.2 56.0,139.5 55.9,140.5 55.8,141.8 55.7,142.8 55.5,144.0 55.4,145.0 55.2,146.1 55.1,147.2 54.9,148.2 54.8,149.5 54.6,150.5 54.4,151.5 54.2,152.6 54.1,153.8 53.9,154.8 53.7,155.8 53.5,156.8 53.3,158.0 53.1,159.0 52.9,160.0 52.7,161.0 52.5,162.0 52.3,163.2 52.1,164.2 51.9,165.2 51.7,166.2 51.5,167.2 51.2,168.4 51.0,169.5 50.8,170.5 50.6,171.5 50.4,172.5 50.2,173.5 50.0,174.7 49.8,175.8 49.6,176.8 49.4,177.8 Z"],[12,"M48.0,166.7 47.6,165.8 47.2,164.8 46.9,164.0 46.5,163.0 46.2,162.2 45.9,161.2 45.5,160.3 45.2,159.5 44.9,158.5 44.5,157.5 44.2,156.6 44.0,155.8 43.7,154.8 43.4,153.8 43.2,152.8 43.0,151.6 42.8,150.5 42.6,149.5 42.5,148.5 42.4,147.2 42.3,146.0 42.2,145.0 42.1,143.8 42.0,142.5 41.9,141.5 41.9,140.2 41.9,139.0 41.9,137.8 41.9,136.5 41.9,135.2 41.9,134.0 41.9,132.8 41.9,131.5 41.9,130.2 42.0,129.2 42.1,128.0 42.1,126.8 42.1,125.5 42.2,124.2 42.3,123.2 42.4,122.0 42.4,120.8 42.5,119.5 42.6,118.5 42.6,117.2 42.6,116.0 42.7,114.8 42.8,113.8 42.9,112.5 42.9,111.2 42.9,110.0 43.0,109.0 43.1,107.8 43.1,106.5 43.2,105.2 43.3,104.2 43.4,103.0 43.4,101.8 43.5,100.8 43.6,99.5 43.7,98.2 43.8,97.2 44.0,96.0 44.1,95.0 44.2,93.9 44.4,92.8 44.6,91.8 44.9,90.8 45.2,89.8 45.5,89.0 46.2,88.3 47.0,87.8 47.8,87.3 48.5,86.9 49.3,86.5 50.2,86.1 51.2,85.8 52.0,85.5 53.0,85.2 54.2,85.0 55.2,84.9 56.5,84.8 57.5,84.7 57.9,85.5 57.8,86.8 57.7,87.8 57.6,89.0 57.5,90.0 57.3,91.2 57.2,92.2 57.1,93.5 56.9,94.5 56.8,95.8 56.7,96.8 56.5,98.0 56.4,99.0 56.3,100.2 56.1,101.2 56.0,102.5 55.9,103.5 55.8,104.8 55.7,105.8 55.5,107.0 55.5,108.0 55.3,109.2 55.2,110.2 55.1,111.5 55.0,112.8 54.9,113.8 54.8,115.0 54.7,116.0 54.6,117.2 54.5,118.5 54.4,119.5 54.3,120.8 54.2,121.8 54.2,123.0 54.0,124.2 54.0,125.2 53.9,126.5 53.8,127.7 53.7,128.8 53.6,130.0 53.5,131.0 53.4,132.2 53.2,133.5 53.1,134.5 53.0,135.8 52.9,136.8 52.8,138.0 52.7,139.0 52.5,140.2 52.4,141.2 52.3,142.5 52.1,143.5 52.0,144.7 51.9,145.8 51.7,146.8 51.5,148.0 51.4,149.0 51.2,150.0 51.0,151.2 50.9,152.2 50.7,153.2 50.5,154.4 50.3,155.5 50.1,156.5 49.9,157.5 49.7,158.5 49.5,159.6 49.3,160.8 49.1,161.8 48.9,162.8 48.7,163.8 48.5,164.9 48.3,166.0 Z"],[13,"M47.0,153.9 46.8,153.0 46.5,151.8 46.3,150.8 46.1,149.8 46.0,148.8 45.8,147.5 45.7,146.5 45.6,145.2 45.5,144.0 45.5,143.0 45.4,141.8 45.3,140.5 45.3,139.2 45.3,138.0 45.3,136.8 45.3,135.5 45.3,134.2 45.3,133.0 45.3,131.8 45.3,130.5 45.4,129.2 45.5,128.0 45.5,127.0 45.5,125.8 45.6,124.5 45.7,123.2 45.8,122.2 45.8,121.0 45.9,119.8 46.0,118.5 46.0,117.5 46.0,116.2 46.1,115.0 46.2,113.8 46.3,112.8 46.3,111.5 46.3,110.2 46.4,109.0 46.5,107.9 46.5,106.8 46.6,105.5 46.7,104.2 46.8,103.2 46.8,102.0 46.9,100.8 47.0,99.7 47.1,98.5 47.2,97.2 47.4,96.2 47.5,95.2 47.7,94.0 47.8,93.0 48.1,92.0 48.4,91.0 49.0,90.5 49.9,90.0 50.8,89.6 51.5,89.2 52.5,88.9 53.5,88.6 54.1,89.2 54.0,90.3 53.9,91.5 53.8,92.5 53.6,93.8 53.5,94.8 53.3,96.0 53.2,97.0 53.1,98.2 52.9,99.2 52.8,100.5 52.7,101.5 52.6,102.8 52.4,103.8 52.3,105.0 52.2,106.0 52.1,107.2 52.0,108.5 51.9,109.5 51.8,110.8 51.7,111.8 51.6,113.0 51.5,114.0 51.4,115.2 51.3,116.5 51.2,117.5 51.1,118.8 51.0,120.0 50.9,121.0 50.8,122.2 50.7,123.2 50.6,124.5 50.5,125.8 50.4,126.8 50.3,128.0 50.2,129.0 50.1,130.2 50.0,131.5 49.9,132.5 49.8,133.8 49.7,134.8 49.6,136.0 49.5,137.0 49.3,138.2 49.2,139.2 49.1,140.5 49.0,141.5 48.8,142.8 48.7,143.8 48.5,145.0 48.4,146.0 48.2,147.0 48.1,148.2 47.9,149.2 47.7,150.2 47.5,151.5 47.4,152.5 47.2,153.5 Z"]];
+const NS = "http://www.w3.org/2000/svg";
+const VB = "-38 -22 176 344";
+
+const ZONES = [
+  { short:"Hallux",   name:"Hallux",               x:19.7, y:21.1,  r:17, base:.17, lx:-8,  ly:14,  anc:"end"    },
+  { short:"Toes 2–5", name:"Lateral toes",         x:66.0, y:33.0,  r:15, base:.12, lx:108, ly:12,  anc:"start"  },
+  { short:"MT 1",     name:"1st metatarsal head",  x:21.5, y:79.5,  r:21, base:.30, lx:-8,  ly:76,  anc:"end"    },
+  { short:"MT 4–5",   name:"4th–5th metatarsal",   x:84.0, y:89.0,  r:20, base:.24, lx:108, ly:84,  anc:"start"  },
+  { short:"Midfoot",  name:"Lateral midfoot",      x:83.0, y:145.0, r:21, base:.13, lx:108, ly:140, anc:"start"  },
+  { short:"Heel",     name:"Heel",                 x:45.8, y:261.0, r:25, base:.24, lx:108, ly:256, anc:"start"  },
+];
+const HERO_ZONE = 2;
+const THRESHOLD_MS = 15*60*1000, LOADED_AT = 0.45, DEVICE_DURATION_MS = 10000, DEBOUNCE_MS = 500;
+const DEVICE_RATE = THRESHOLD_MS/DEVICE_DURATION_MS;
+const SOLE_D = "M9.7,67.1 L5,77.9 L2.5,89.7 L1.2,106.3 L0.4,122.9 L0,139.1 L0.7,151.1 L2.6,162.9 L6.1,174.5 L10.7,186.1 L15,197.6 L17.9,209.2 L18.4,216.9 L16.8,228.6 L13.8,240.4 L11.3,252.4 L11.1,264.6 L14.6,276.7 L21.7,287 L32,293.8 L44.3,296 L56.7,293.8 L67.1,287.4 L74.7,277.8 L79.7,266.3 L82.3,254.3 L83.1,242.2 L83,230.1 L82.9,222.1 L83.4,210 L84.9,198 L87,186.1 L89.3,174.2 L91.6,162.3 L93.5,150.6 L94.8,138.8 L96.2,123 L97.7,106.5 L98.7,98 L99.9,85.2 L99.5,72.9 L96.1,62 L88.6,53.2 L77.9,46.9 L65.3,43.4 L52.1,43.1 L39.3,45.6 L27.4,50.6 L17.3,57.9 Z";
+const TOES = [[19.7,21.1,14.3,21.1,-6],[45.1,26.1,9.6,16.2,-3],[61.3,31.1,8.7,14,0],
+              [76.2,36,7.8,12.1,4],[88.6,42.3,6.8,10.3,8]];
+
+const profile = { foot:"Left", dur:"Under a year", ecRel:"Spouse" };
+let feet = [], state = [], mode = "walk", speed = DEVICE_RATE, lastT = performance.now();
+const alerts = [];
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const byId = i => document.getElementById(i);
+let live = [], liveAt = -1, liveHeat = null, heatAt = -1;
+const isLive = () => liveAt >= 0 && performance.now() - liveAt < 2000;
+const heatFresh = () => liveHeat !== null && performance.now() - heatAt < 2000;
+const parsePayload = d => { const v = d.trim().split(/[\s,;]+/).filter(Boolean).map(Number);
+  return v.length === ZONES.length && v.every(x => Number.isFinite(x) && x >= 0) ? v : null; };
+if (location.protocol.startsWith("http")){
+  const events = new EventSource("/events" + location.search);
+  events.onmessage = e => {
+    const v = parsePayload(e.data); if (!v) return;
+    if (liveAt < 0){ alerts.length = 0; paintLog(); lastKey = null;
+      state.flat().forEach(s => Object.assign(s, { load:0, sustained:0, peak:0, total:0, alerted:false, held:false, act:false, done:0, last:0 })); }
+    live = v; liveAt = performance.now(); };
+  events.addEventListener("frame", e => {
+    try { const heat = JSON.parse(e.data).h;
+      if (Array.isArray(heat) && heat.length === ZONES.length && heat.every(Number.isFinite)){ liveHeat = heat; heatAt = performance.now(); } }
+    catch {} });
+}
+const speedSel = byId("speedSel");
+if (![...speedSel.options].some(o => +o.value === DEVICE_RATE))
+  speedSel.add(new Option(`${DEVICE_RATE}×`, DEVICE_RATE), [...speedSel.options].find(o => +o.value > DEVICE_RATE) || null);
+speedSel.value = String(DEVICE_RATE);
+byId("demoSub").textContent = `Sparsh alerts after 15 minutes of unrelieved load. The demo insole alerts after ${DEVICE_DURATION_MS/1000} seconds, which is ${DEVICE_RATE}× speed. These controls run the simulation when no insole is connected.`;
+const el = (n,a={}) => { const e = document.createElementNS(NS,n);
+  for (const k in a) e.setAttribute(k, a[k]); return e; };
+const fmt = ms => { const s = Math.floor(ms/1000);
+  return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); };
+const esc = s => String(s??"—").replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+
+const STOPS = [[0,[195,210,212]],[.34,[159,184,189]],[.58,[232,194,74]],[.8,[232,131,58]],[1,[178,58,46]]];
+function scaleColor(v){
+  v = Math.max(0, Math.min(1, v));
+  for (let i=0;i<STOPS.length-1;i++){
+    const [a,ca] = STOPS[i], [b,cb] = STOPS[i+1];
+    if (v <= b){ const t = (v-a)/(b-a);
+      return `rgb(${ca.map((c,j)=>Math.round(c+(cb[j]-c)*t)).join(",")})`; }
+  }
+  return "rgb(178,58,46)";
+}
+
+let uid = 0;
+function footShapes(cls){
+  const out = [el("path", cls ? {class:cls, d:SOLE_D} : {d:SOLE_D})];
+  for (const [cx,cy,rx,ry,a] of TOES){
+    const o = {cx, cy, rx, ry}; if (a) o.transform = `rotate(${a} ${cx} ${cy})`;
+    if (cls) o.class = cls;
+    out.push(el("ellipse", o));
+  }
+  return out;
+}
+function buildFoot({ mirror=false, hero=false, index=0 } = {}){
+  const id = "f"+(uid++);
+  const svg = el("svg", { viewBox:VB, class:"draw" });
+  svg.setAttribute("aria-label", hero
+    ? "A footprint drawn as ridge lines, with load building under the ball of the foot"
+    : "Live foot load map. Press and hold a zone to load it.");
+
+  const defs = el("defs");
+  const clip = el("clipPath", { id:"clip"+id });
+  footShapes().forEach(s => clip.appendChild(s));
+  const filt = el("filter", { id:"soft"+id, x:"-70%", y:"-70%", width:"240%", height:"240%" });
+  filt.appendChild(el("feGaussianBlur", { stdDeviation: hero ? 9 : 8.5 }));
+  defs.append(clip, filt);
+  svg.appendChild(defs);
+
+  const art = el("g", { class: hero ? "foot-breathe" : "" });
+  if (mirror) art.setAttribute("transform", "translate(100,0) scale(-1,1)");
+
+  const wash = el("g");
+  footShapes("sole-fill").forEach(s => wash.appendChild(s));
+  art.appendChild(wash);
+
+  const heat = el("g", { "clip-path":`url(#clip${id})`, filter:`url(#soft${id})` });
+  ZONES.forEach((z,i) => {
+    const c = el("circle", { class:"heat", cx:z.x, cy:z.y, r:z.r });
+    if (hero) c.id = "hh"+i;
+    else { c.dataset.h = index+"-"+i;
+      c.style.transition = "fill .5s linear, opacity .5s linear, transform .5s linear"; }
+    heat.appendChild(c);
+  });
+  art.appendChild(heat);
+
+  const ridges = el("g", { "clip-path":`url(#clip${id})` });
+  RIDGE.forEach(([ring,d]) => {
+    const p = el("path", { class:"ridge", pathLength:"1", d });
+    p.style.setProperty("--i", ring); ridges.appendChild(p);
+  });
+  art.appendChild(ridges);
+
+  if (hero){
+    const m = el("mask", { id:"hm"+id, maskUnits:"userSpaceOnUse",
+                           x:"-40", y:"-20", width:"180", height:"340" });
+    const mf = el("filter", { id:"mb"+id, x:"-70%", y:"-70%", width:"240%", height:"240%" });
+    mf.appendChild(el("feGaussianBlur", { stdDeviation:11 }));
+    defs.appendChild(mf);
+    const mc = el("circle", { cx:ZONES[HERO_ZONE].x, cy:ZONES[HERO_ZONE].y, r:30,
+                              fill:"#fff", filter:`url(#mb${id})` });
+    m.appendChild(mc); defs.appendChild(m);
+    const hot = el("g", { class:"ridge-hot", id:"heroHot", mask:`url(#hm${id})`,
+                          "clip-path":`url(#clip${id})` });
+    RIDGE.forEach(([,d]) => hot.appendChild(el("path", { class:"hot-ridge", d })));
+    art.appendChild(hot);
+  }
+  svg.appendChild(art);
+
+  const marks = el("g");
+  ZONES.forEach((z,i) => {
+    const x = mirror ? 100 - z.x : z.x, y = z.y;
+    const lx = mirror ? 100 - z.lx : z.lx, ly = z.ly;
+    const anc = mirror ? (z.anc === "start" ? "end" : "start") : z.anc;
+
+    const g = el("g", { class:"mk" });
+    if (!hero) g.dataset.mk = index+"-"+i;
+    const ringEl = el("circle", { class:"ring", cx:x, cy:y, r:11.5 });
+    if (hero && i === HERO_ZONE) ringEl.id = "heroRing";
+    g.append(
+      el("line", { class:"lead", x1:x, y1:y, x2:lx + (anc==="start" ? 2 : anc==="end" ? -2 : 0),
+                   y2:ly + 8 }),
+      el("circle", { class:"rt-ring", cx:x, cy:y, r:8.2 }),
+      el("circle", { class:"rt-core", cx:x, cy:y, r:2.8, fill:"#9FB8BD" }),
+      ringEl,
+    );
+    const mkText = (cls, tx, ty, txt) => {
+      const halo = el("text", { class:cls+" halo", x:tx, y:ty, "text-anchor":anc });
+      const top  = el("text", { class:cls,          x:tx, y:ty, "text-anchor":anc });
+      halo.textContent = top.textContent = txt;
+      return [halo, top];
+    };
+    g.append(...mkText("lbl", lx, ly, z.short), ...mkText("val", lx, ly+11, "00:00"));
+    if (!hero){
+      const hold = on => ev => { ev.preventDefault(); state[index][i].held = on; };
+      g.addEventListener("pointerdown", hold(true));
+      g.addEventListener("pointerup", hold(false));
+      g.addEventListener("pointerleave", hold(false));
+      g.addEventListener("pointerenter", () => setLit(index, i, true));
+      g.addEventListener("pointerout", () => setLit(index, i, false));
+    }
+    marks.appendChild(g);
+  });
+  svg.appendChild(marks);
+  return svg;
+}
+function setLit(f, z, on){
+  const m = document.querySelector(`[data-mk="${f}-${z}"]`);
+  const r = document.querySelector(`.lrow[data-f="${f}"][data-z="${z}"]`);
+  if (m) m.classList.toggle("lit", on);
+  if (r) r.classList.toggle("lit", on);
+}
+
+byId("heroSlot").appendChild(buildFoot({ hero:true }));
+
+const CAPTIONS = [[0,"Weight settles on the ball of the foot"],
+  [3800,"Load keeps building. Nothing is felt"],
+  [7900,"<b>Fifteen minutes unrelieved — Sparsh alerts</b>"],
+  [12900,"Weight shifts. The tissue recovers"]];
+const t0 = Date.now();
+if (!reduced){
+  const cap = byId("cycleLabel");
+  const tick = () => { const t = (Date.now()-t0) % 15000;
+    let s = CAPTIONS[0][1]; for (const [at,x] of CAPTIONS) if (t >= at) s = x;
+    if (cap.innerHTML !== s) cap.innerHTML = s; };
+  setInterval(tick, 200); tick();
+} else byId("cycleLabel").textContent = "Load builds, Sparsh alerts, weight shifts.";
+
+const pages = { landing:byId("landing"), setup:byId("setup"), board:byId("board") };
+let current = "landing";
+function goTo(name, origin){
+  if (name === current) return;
+  const from = pages[current], to = pages[name];
+  if (origin){ const r = origin.getBoundingClientRect();
+    to.style.setProperty("--ox", (r.left+r.width/2)+"px");
+    to.style.setProperty("--oy", (r.top+r.height/2)+"px");
+  } else { to.style.setProperty("--ox","50%"); to.style.setProperty("--oy","40%"); }
+  to.classList.add("live","enter");
+  from.classList.add("leave");
+  document.querySelector(".topbar").className = "topbar " + (name==="landing"?"on-dark":"on-light");
+  byId("restart").classList.toggle("show", name !== "landing");
+  setTimeout(() => {
+    from.classList.remove("live","leave");
+    to.classList.remove("enter"); to.scrollTop = 0; current = name;
+    if (name === "board") bootBoard();
+    to.querySelectorAll("svg.draw, svg").forEach(s => {
+      if (!s.querySelector(".ridge")) return;
+      s.classList.remove("draw"); void s.getBBox(); s.classList.add("draw"); });
+  }, reduced ? 20 : 480);
+}
+
+let step = 0;
+const V = id => byId(id).value.trim();
+const digits = s => (s.match(/\d/g)||[]).length;
+function setStep(n){
+  step = n;
+  document.querySelectorAll(".step").forEach(s => s.classList.toggle("on", +s.dataset.step === n));
+  document.querySelectorAll("[data-dot]").forEach(d => {
+    const i = +d.dataset.dot; d.className = i<n ? "done" : i===n ? "now" : ""; });
+  document.querySelectorAll("[data-seg]").forEach(s => s.classList.toggle("filled", +s.dataset.seg < n));
+  byId("stepCount").textContent = `Step ${n+1} of 3`;
+  byId("setup").scrollTop = 0;
+}
+function flag(k,bad){ const f = document.querySelector(`.field[data-k="${k}"]`);
+  if (f) f.classList.toggle("bad", bad); return !bad; }
+function validate(n){
+  let ok = true;
+  if (n===0){ ok &= flag("name", V("f-name").length<2);
+    ok &= flag("phone", digits(V("f-phone"))<10);
+    const a = +V("f-age"); ok &= flag("age", !a||a<1||a>120);
+    const e = V("f-email"); ok &= flag("email", e.length>0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)); }
+  if (n===1){ const h=+V("f-height"), w=+V("f-weight"), s=+V("f-shoe");
+    ok &= flag("height", !h||h<60||h>240); ok &= flag("weight", !w||w<20||w>250);
+    ok &= flag("shoe", !s||s<1||s>15); }
+  if (n===2){ ok &= flag("ecName", V("f-ecname").length<2);
+    ok &= flag("ecPhone", digits(V("f-ecphone"))<10); }
+  if (!ok){ const b = document.querySelector(".step.on .field.bad input"); if (b) b.focus(); }
+  return !!ok;
+}
+document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => {
+  const to = +b.dataset.go; if (to > step && !validate(step)) return; setStep(to); }));
+document.querySelectorAll(".chips").forEach(gr => gr.addEventListener("click", e => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  gr.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed","false"));
+  c.setAttribute("aria-pressed","true");
+  profile[gr.id === "footPick" ? "foot" : "dur"] = c.dataset.v; }));
+document.querySelectorAll(".field input").forEach(i =>
+  i.addEventListener("input", () => i.closest(".field").classList.remove("bad")));
+byId("begin").addEventListener("click", e => goTo("setup", e.currentTarget));
+byId("restart").addEventListener("click", e => { setStep(0); goTo("landing", e.currentTarget); });
+byId("finish").addEventListener("click", e => {
+  if (!validate(2)) return;
+  Object.assign(profile, { name:V("f-name"), phone:V("f-phone"), age:V("f-age"), email:V("f-email"),
+    height:V("f-height"), weight:V("f-weight"), shoe:V("f-shoe"), ecName:V("f-ecname"),
+    ecPhone:V("f-ecphone"), ecRel:byId("f-ecrel").value, clinic:V("f-clinic") });
+  built = false; goTo("board", e.currentTarget);
+});
+
+let built = false, running = false;
+function bootBoard(){
+  if (built) { paintProfile(); return; }
+  built = true;
+
+  feet = profile.foot === "Both" ? ["Left","Right"] : [profile.foot];
+  state = feet.map(() => ZONES.map(z => ({ load:liveAt >= 0 ? 0 : z.base, sustained:0, peak:0, total:0,
+                                           alerted:false, held:false, act:false, hi:0, st:0, done:0, last:0 })));
+  byId("boardWrap").classList.toggle("dual", feet.length === 2);
+  byId("boardWrap").classList.remove("device");
+
+  const stage = byId("feetStage"); stage.innerHTML = "";
+  feet.forEach((side,i) => {
+    const wrap = document.createElement("div"); wrap.className = "one";
+    wrap.appendChild(buildFoot({ mirror: side === "Left", index:i }));
+    const cap = document.createElement("p"); cap.className = "cap";
+    cap.textContent = side + " foot"; wrap.appendChild(cap);
+    stage.appendChild(wrap);
+  });
+
+  buildLoadRows();
+  paintProfile();
+  byId("standBtn").onclick = () => setMode("stand");
+  byId("walkBtn").onclick  = () => setMode("walk");
+  byId("speedSel").onchange = e => speed = +e.target.value;
+  byId("resetBtn").onclick = () => { state.flat().forEach(s => { s.sustained=0; s.alerted=false; s.act=false; });
+    lastKey=null; paintAlert(); };
+  byId("relieveBtn").onclick = () => { state.flat().forEach(s => {
+    s.sustained=0; s.alerted=false; s.held=false; s.act=false; }); setMode("walk"); lastKey=null; paintAlert(); };
+
+  if (!running){ running = true; lastT = performance.now(); requestAnimationFrame(loop); }
+}
+function paintProfile(){
+  const h = new Date().getHours();
+  byId("hello").textContent = (h<12?"Good morning":h<17?"Good afternoon":"Good evening") +
+    (profile.name ? ", " + profile.name.split(" ")[0] : "");
+  const shown = liveAt >= 0 ? feet.slice(0, 1) : feet;
+  byId("sinceLine").textContent =
+    `${shown.join(" and ")} ${shown.length>1?"feet":"foot"} · ${profile.height||"—"} cm · ${profile.weight||"—"} kg · UK ${profile.shoe||"—"} · alerts after 15 minutes of unrelieved load`;
+  byId("footLabel").textContent = feet.length>1 && liveAt < 0
+    ? "Both feet, accumulated today — compare left against right"
+    : `${feet[0]} foot, accumulated today`;
+  byId("sosList").innerHTML =
+    `<div class="kv"><span>${esc(profile.ecRel)}</span><b>${esc(profile.ecName)}</b></div>
+     <div class="kv"><span>Number</span><b>${esc(profile.ecPhone)}</b></div>` +
+    (profile.clinic ? `<div class="kv"><span>Clinic</span><b>${esc(profile.clinic)}</b></div>` : "");
+}
+function setMode(m){ mode = m;
+  byId("standBtn").setAttribute("aria-pressed", m==="stand");
+  byId("walkBtn").setAttribute("aria-pressed", m==="walk"); }
+
+function loop(now){
+  const dt = Math.min(now-lastT, 120); lastT = now;
+  const t = now/1000, dev = liveAt >= 0, on = isLive(), rate = dev ? DEVICE_RATE : speed;
+  const wf = profile.weight ? Math.min(1.25, .75 + (+profile.weight)/120) : 1;
+
+  state.forEach((foot,f) => foot.forEach((s,i) => {
+    const z = ZONES[i], bias = f === 0 ? 1 : 0.86;
+    if (dev){
+      const ms = on && !f ? live[i] : 0;
+      const p = on && !f && heatFresh() ? liveHeat[i] : ms ? LOADED_AT : 0;
+      s.load += (p - s.load) * Math.min(1, dt/90);
+      s.load = ms ? Math.max(s.load, LOADED_AT) : Math.min(s.load, LOADED_AT - .01);
+      s.sustained = ms*rate;
+    } else {
+      let target;
+      if (s.held) target = .96;
+      else if (mode === "stand") target = Math.min(.99, z.base*2.15*wf*bias + .06*Math.sin(t*.7+i+f));
+      else target = z.base*wf*bias*(.55 + .45*Math.abs(Math.sin(t*1.5 + i*1.3 + f*.8)));
+      s.load += (target - s.load) * Math.min(1, dt/260);
+      if (s.load >= LOADED_AT){ if (!s.act){ s.st = now; s.rate = rate; } s.act = true; s.hi = now; }
+      else if (now - s.hi + dt >= DEBOUNCE_MS) s.act = false;
+      s.sustained = s.act ? Math.max(1, s.hi - s.st)*s.rate : 0;
+    }
+    if (s.sustained < s.last) s.done += s.last;
+    s.last = s.sustained;
+    s.total = s.done + s.sustained;
+    if (s.sustained === 0) s.alerted = false;
+    s.peak = Math.max(s.peak, s.load);
+
+    if (s.sustained >= THRESHOLD_MS && !s.alerted){
+      s.alerted = true;
+      alerts.unshift({ foot:feet[f], zone:z.name, at:new Date(), mins:Math.round(s.sustained/60000) });
+      paintLog();
+    }
+    paintZone(f,i,s);
+  }));
+  paintAlert(); paintLoad(); paintToday();
+  requestAnimationFrame(loop);
+}
+function paintZone(f,i,s){
+  const ratio = Math.min(1, s.sustained/THRESHOLD_MS);
+  const v = Math.max(s.load*.55, ratio), col = scaleColor(v);
+  const hz = document.querySelector(`[data-h="${f}-${i}"]`);
+  if (hz){ hz.style.fill = col; hz.style.opacity = (.14 + v*.62).toFixed(2);
+    hz.style.transform = `scale(${(.7 + v*.46).toFixed(3)})`; }
+  const mk = document.querySelector(`[data-mk="${f}-${i}"]`);
+  if (mk){ mk.classList.toggle("hot", s.alerted);
+    mk.querySelector(".rt-core").setAttribute("fill", col);
+    const txt = fmt(s.sustained);
+    if (s._t !== txt){ s._t = txt; mk.querySelectorAll(".val").forEach(n => n.textContent = txt); }
+    mk.classList.toggle("on", s.load >= LOADED_AT || s.sustained > 0);
+    mk.querySelector(".ring").classList.toggle("live", s.alerted); }
+}
+let lastKey = null;
+function paintAlert(){
+  const hot = [];
+  state.forEach((foot,f) => foot.forEach((s,i) => { if (s.alerted) hot.push({s,f,i}); }));
+  hot.sort((a,b) => b.s.sustained - a.s.sustained);
+  const box = byId("alertBox"), key = hot.map(o => o.f+"-"+o.i).join(","), lead = hot[0];
+  if (lead){
+    const pre = feet.length>1 ? feet[lead.f]+" foot, " : "";
+    const n = hot.length - 1;
+    const more = n ? ` ${n} other ${n===1?"zone is":"zones are"} also over the limit.` : "";
+    byId("alertText").textContent =
+      `${pre}${ZONES[lead.i].name.toLowerCase()} has carried load for ${fmt(lead.s.sustained)} without relief. Shift your weight or sit down.${more}`;
+  }
+  if (key === lastKey) return;
+  lastKey = key;
+  if (hot.length){
+    box.classList.add("firing");
+    byId("alertTitle").textContent =
+      `Shift your weight — ${feet.length>1 ? feet[lead.f].toLowerCase()+" " : ""}${ZONES[lead.i].short}`;
+  } else {
+    box.classList.remove("firing");
+    byId("alertTitle").textContent = "All zones within limits";
+    byId("alertText").textContent = "Nothing has been loaded long enough to need a change of position.";
+  }
+}
+function buildLoadRows(){
+  const host = byId("loadList");
+  host.innerHTML = "";
+  feet.forEach((side,f) => ZONES.forEach((z,i) => {
+    const r = document.createElement("div");
+    r.className = "lrow"; r.id = `lr${f}-${i}`;
+    r.dataset.f = f; r.dataset.z = i;
+    r.innerHTML = `<i class="dot"></i>
+      <span class="nm">${feet.length>1 ? `<em>${side} · </em>` : ""}${z.name}</span>
+      <span class="mtr"><i></i></span><b class="tm">00:00</b>`;
+    host.appendChild(r);
+  }));
+  const calm = document.createElement("p");
+  calm.className = "calm"; calm.id = "calmMsg";
+  calm.textContent = "Nothing is carrying sustained load. Timers start when a zone stays loaded.";
+  host.appendChild(calm);
+}
+function paintLoad(){
+  const dev = liveAt >= 0, wrap = byId("boardWrap");
+  const tip = !dev ? "Press and hold any zone to load it, or turn on Standing still below."
+    : isLive() ? "Live from the insole. Harder presses show larger and warmer, and a zone reddens the longer it stays loaded." : "No data from the insole. Check it is on and on the same Wi-Fi.";
+  if (byId("tip").textContent !== tip) byId("tip").textContent = tip;
+  if (dev && !wrap.classList.contains("device")){
+    wrap.classList.add("device");
+    speedSel.value = String(DEVICE_RATE);
+    ["standBtn","walkBtn"].forEach(id => byId(id).setAttribute("aria-pressed", false));
+    document.querySelectorAll(".controls button, .controls select").forEach(c => c.disabled = true);
+    document.querySelectorAll(".feet .one").forEach((w,f) => { if (f){ w.classList.add("off");
+      w.querySelector(".cap").textContent = `${feet[f]} foot, no insole`; } });
+    paintProfile();
+  }
+  const rows = [];
+  state.forEach((foot,f) => foot.forEach((s,i) => {
+    if (s.load >= LOADED_AT || s.sustained > 0) rows.push({s,f,i}); }));
+  rows.sort((a,b) => b.s.sustained - a.s.sustained);
+
+  const shown = new Set();
+  rows.forEach(({s,f,i},k) => {
+    shown.add(f+"-"+i);
+    const r = byId(`lr${f}-${i}`); if (!r) return;
+    const ratio = Math.min(1, s.sustained/THRESHOLD_MS);
+    const col = scaleColor(Math.max(s.load*.55, ratio));
+    r.style.order = k;
+    r.style.borderBottomWidth = k === rows.length-1 ? "0" : "";
+    r.classList.add("on");
+    r.classList.toggle("hot", s.alerted);
+    r.querySelector(".dot").style.background = col;
+    const bar = r.querySelector(".mtr i");
+    bar.style.width = (ratio*100).toFixed(0)+"%"; bar.style.background = col;
+    const tm = r.querySelector(".tm"), txt = fmt(s.sustained);
+    if (tm.textContent !== txt) tm.textContent = txt;
+  });
+  state.forEach((foot,f) => foot.forEach((_,i) => {
+    if (!shown.has(f+"-"+i)) byId(`lr${f}-${i}`)?.classList.remove("on"); }));
+
+  byId("calmMsg").style.display = rows.length ? "none" : "block";
+  const sub = rows.length
+    ? `${rows.length} of ${ZONES.length*(dev ? 1 : feet.length)} zones carrying weight · longest first`
+    : "Zones carrying weight without relief";
+  const sEl = byId("loadSub");
+  if (sEl.textContent !== sub) sEl.textContent = sub;
+}
+byId("loadList").addEventListener("pointerover", e => {
+  const r = e.target.closest(".lrow"); if (r) setLit(+r.dataset.f, +r.dataset.z, true); });
+byId("loadList").addEventListener("pointerout", e => {
+  const r = e.target.closest(".lrow"); if (r) setLit(+r.dataset.f, +r.dataset.z, false); });
+
+let todayHTML = "";
+function paintToday(){
+  const max = Math.max(1, ...state.flat().map(s => s.total));
+  const html = feet.map((side,f) =>
+    (feet.length>1 ? `<div class="kv" style="border-bottom:0;padding-bottom:0"><span><b style="color:var(--slate-deep)">${side} foot</b></span><b></b></div>` : "") +
+    ZONES.map((z,i) => { const s = state[f][i], pct = s.total/max*100;
+      return `<div class="kv"><span>${z.name}</span>
+        <b style="display:flex;align-items:center;gap:9px">
+          <i style="display:block;width:${Math.max(3,pct*.6).toFixed(0)}px;height:7px;border-radius:9px;background:${scaleColor(s.peak)}"></i>
+          ${fmt(s.total)}</b></div>`; }).join("")).join("");
+  if (html !== todayHTML) byId("todayList").innerHTML = todayHTML = html;
+}
+function paintLog(){
+  const l = byId("logList");
+  if (!alerts.length){ l.innerHTML = '<p class="empty">No alerts yet.</p>'; return; }
+  l.innerHTML = alerts.slice(0,14).map(a => `<div class="row-i">
+    <time>${a.at.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</time>
+    <span>${feet.length>1 ? a.foot+" · " : ""}${a.zone} — ${a.mins} min unrelieved</span></div>`).join("");
+}
+</script>
+</body>
+</html>
